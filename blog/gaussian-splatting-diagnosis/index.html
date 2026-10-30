@@ -1,0 +1,35 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="高斯泼溅的画面很能打，但它重建的不是原始数据，而是对观测的拟合。拟合得越好，越要小心它在你没看的地方补了什么。"><title>高斯泼溅很好看，但先别拿它做诊断 — 博客</title><script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script><style>:root{--bg: #f6f3ed;--surface: #fffdf9;--ink: #1c1917;--muted: #78716c;--line: #e7e0d4;--accent: #9a3412;--accent-soft: #ffedd5;--code-bg: #292524;--code-ink: #fafaf9;--shadow: 0 1px 2px rgba(28, 25, 23, .06), 0 8px 24px rgba(28, 25, 23, .05)}[data-theme=dark]{--bg: #1c1917;--surface: #292524;--ink: #fafaf9;--muted: #a8a29e;--line: #44403c;--accent: #fdba74;--accent-soft: #431407;--code-bg: #0c0a09;--code-ink: #e7e5e4;--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25)}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif;line-height:1.8;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}.wrap{max-width:760px;margin:0 auto;padding:0 1.25rem 4rem}.topbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.25rem 0 1rem;border-bottom:1px solid var(--line);margin-bottom:2.5rem}.brand{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;font-size:1.35rem;font-weight:700;letter-spacing:.02em;color:var(--ink)}.brand:hover{text-decoration:none}nav{display:flex;align-items:center;gap:1.25rem}nav a{color:var(--muted);font-size:.95rem}nav a:hover{color:var(--accent)}.theme-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:.3rem .8rem;font-size:.85rem;cursor:pointer}h1,h2,h3,h4,h5{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;line-height:1.35;letter-spacing:.01em}h1{font-size:2rem;margin:0 0 .75rem}h2{font-size:1.35rem;margin:2rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line)}.hero{margin-bottom:2rem}.hero p{color:var(--muted);margin:.25rem 0}.post-list{list-style:none;margin:0;padding:0;display:grid;gap:1rem}.post-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}.post-card h3{margin:0 0 .35rem;font-size:1.25rem}.post-card h3 a{color:var(--ink)}.post-card h3 a:hover{color:var(--accent);text-decoration:none}.post-card p{color:var(--muted);margin:.4rem 0 0;font-size:.95rem}.post-meta{color:var(--muted);font-size:.88rem}.tag{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:.05rem .6rem;font-size:.82rem;margin-left:.4rem}article{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:2rem;box-shadow:var(--shadow)}article h1{font-size:2.1rem}blockquote{margin:1.25rem 0;padding:.75rem 1.1rem;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--muted);border-radius:0 10px 10px 0}pre{overflow-x:auto;padding:1rem 1.2rem;border-radius:10px;background:var(--code-bg);color:var(--code-ink);line-height:1.6;font-size:.88rem}pre code{background:none;padding:0;color:inherit}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--accent-soft);padding:.15em .4em;border-radius:6px}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem}th,td{border:1px solid var(--line);padding:.45rem .7rem;text-align:left;white-space:nowrap}th{background:var(--accent-soft)}img{max-width:100%;height:auto;border-radius:10px;display:block;margin:1.25rem auto}hr{border:none;border-top:1px solid var(--line);margin:2rem 0}footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem;text-align:center}footer a{color:var(--muted)}.back{display:inline-block;margin-top:1.5rem}@media(max-width:600px){article{padding:1.25rem}h1,article h1{font-size:1.6rem}.topbar{align-items:flex-start;flex-direction:column;gap:.75rem}}
+</style></head> <body> <div class="wrap"> <header class="topbar"> <a class="brand" href="/">博客</a> <nav> <a href="/">首页</a> <a href="/blog/">博文</a> <button class="theme-btn" type="button" onclick="(function(){var d=document.documentElement;var t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('theme',t)}catch(e){}})()">🌙 / ☀️</button> </nav> </header> <main>  <article> <h1>高斯泼溅很好看，但先别拿它做诊断</h1> <p class="post-meta"> 2026-10-30  · 体渲染 </p> <p>高斯泼溅（Gaussian Splatting）这两年很火，原因不难理解：渲染快、画面好、交互顺滑。拿它做演示、做可视化、做产品原型，都没问题。但把它直接推到诊断场景之前，有几个结构性问题要先说清楚。</p>
+<h2 id="它拟合的是观测不是数据">它拟合的是观测，不是数据</h2>
+<p>高斯泼溅的本质，是用一堆三维高斯去拟合一组观测图像。拟合目标是“从这些角度看过去像”，而不是“这个体素的原始值是多少”。</p>
+<p>这带来一个根本差别：</p>
+<ul>
+<li><strong>体渲染</strong>：给定体素和传递函数，画面是确定性计算出来的，改参数能复现，错了能定位到某个体素。</li>
+<li><strong>高斯泼溅</strong>：画面是优化出来的，同一个场景换一组初始化、换一个正则项，结果可能不一样，而你很难说清某一个像素对应原始数据的哪一部分。</li>
+</ul>
+<p>拟合得越好，这个问题越隐蔽。因为好看的结果会让人默认它是对的。</p>
+<h2 id="三个具体风险">三个具体风险</h2>
+<ol>
+<li><strong>没观测到的地方会被“脑补”。</strong> 稀疏视角下，未覆盖区域的高斯分布是优化器填出来的，不是测出来的。填得合理是运气，填得离谱也不会在演示视角里露馅。</li>
+<li><strong>小结构最先丢。</strong> 优化目标通常是整体图像误差，小血管、钙化点这类只占几个像素的结构，对总误差贡献很小，最容易在优化里被平滑掉。</li>
+<li><strong>无法逐体素审计。</strong> 诊断需要的是“这个值从哪来”，而高斯参数没有一一对应的原始体素，审计链在第一步就断了。</li>
+</ol>
+<h2 id="那它适合干什么">那它适合干什么？</h2>
+<p>适合干的事其实很多，只是要摆对位置：</p>
+<ul>
+<li>快速预览、教学演示、跨科室沟通：非常适合，理解成本低。</li>
+<li>术前规划的可视化辅助：在有原始数据对照的前提下，作为第二视角参考。</li>
+<li>不适合干的事：单独作为诊断依据、单独用于测量、单独用于随访对比。</li>
+</ul>
+<p>一句话总结：<strong>高斯泼溅是很好的预览层，不是诊断层。</strong> 把它放在预览层，它是个好工具；把它推到诊断层，好看就成了风险。</p>
+<blockquote>
+<p>再补一句冷水：评价一个重建方法，不要只看它在演示视角下的 PSNR 和主观效果，要看它在未观测视角、小结构、噪声和伪影下的表现。演示视角永远是方法最想让你看的那一面。</p>
+</blockquote> </article> <p class="back"><a href="/">← 返回首页</a></p>  </main> <footer> <p>博客</p> </footer> </div> </body></html>

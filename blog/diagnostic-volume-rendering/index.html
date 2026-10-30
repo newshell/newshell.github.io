@@ -1,0 +1,47 @@
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="体渲染做得好不好看是其次，先问一句：画面里的每一个体素，能不能追溯回原始数据？追溯不回去的漂亮，都是预览，不是诊断。"><title>诊断级体渲染：原始数据才是底线 — 博客</title><script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script><style>:root{--bg: #f6f3ed;--surface: #fffdf9;--ink: #1c1917;--muted: #78716c;--line: #e7e0d4;--accent: #9a3412;--accent-soft: #ffedd5;--code-bg: #292524;--code-ink: #fafaf9;--shadow: 0 1px 2px rgba(28, 25, 23, .06), 0 8px 24px rgba(28, 25, 23, .05)}[data-theme=dark]{--bg: #1c1917;--surface: #292524;--ink: #fafaf9;--muted: #a8a29e;--line: #44403c;--accent: #fdba74;--accent-soft: #431407;--code-bg: #0c0a09;--code-ink: #e7e5e4;--shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25)}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif;line-height:1.8;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}.wrap{max-width:760px;margin:0 auto;padding:0 1.25rem 4rem}.topbar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:1.25rem 0 1rem;border-bottom:1px solid var(--line);margin-bottom:2.5rem}.brand{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;font-size:1.35rem;font-weight:700;letter-spacing:.02em;color:var(--ink)}.brand:hover{text-decoration:none}nav{display:flex;align-items:center;gap:1.25rem}nav a{color:var(--muted);font-size:.95rem}nav a:hover{color:var(--accent)}.theme-btn{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:.3rem .8rem;font-size:.85rem;cursor:pointer}h1,h2,h3,h4,h5{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;line-height:1.35;letter-spacing:.01em}h1{font-size:2rem;margin:0 0 .75rem}h2{font-size:1.35rem;margin:2rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line)}.hero{margin-bottom:2rem}.hero p{color:var(--muted);margin:.25rem 0}.post-list{list-style:none;margin:0;padding:0;display:grid;gap:1rem}.post-card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:1.25rem 1.4rem;box-shadow:var(--shadow)}.post-card h3{margin:0 0 .35rem;font-size:1.25rem}.post-card h3 a{color:var(--ink)}.post-card h3 a:hover{color:var(--accent);text-decoration:none}.post-card p{color:var(--muted);margin:.4rem 0 0;font-size:.95rem}.post-meta{color:var(--muted);font-size:.88rem}.tag{display:inline-block;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:.05rem .6rem;font-size:.82rem;margin-left:.4rem}article{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:2rem;box-shadow:var(--shadow)}article h1{font-size:2.1rem}blockquote{margin:1.25rem 0;padding:.75rem 1.1rem;border-left:3px solid var(--accent);background:var(--accent-soft);color:var(--muted);border-radius:0 10px 10px 0}pre{overflow-x:auto;padding:1rem 1.2rem;border-radius:10px;background:var(--code-bg);color:var(--code-ink);line-height:1.6;font-size:.88rem}pre code{background:none;padding:0;color:inherit}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--accent-soft);padding:.15em .4em;border-radius:6px}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem}th,td{border:1px solid var(--line);padding:.45rem .7rem;text-align:left;white-space:nowrap}th{background:var(--accent-soft)}img{max-width:100%;height:auto;border-radius:10px;display:block;margin:1.25rem auto}hr{border:none;border-top:1px solid var(--line);margin:2rem 0}footer{margin-top:3rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.9rem;text-align:center}footer a{color:var(--muted)}.back{display:inline-block;margin-top:1.5rem}@media(max-width:600px){article{padding:1.25rem}h1,article h1{font-size:1.6rem}.topbar{align-items:flex-start;flex-direction:column;gap:.75rem}}
+</style></head> <body> <div class="wrap"> <header class="topbar"> <a class="brand" href="/">博客</a> <nav> <a href="/">首页</a> <a href="/blog/">博文</a> <button class="theme-btn" type="button" onclick="(function(){var d=document.documentElement;var t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('theme',t)}catch(e){}})()">🌙 / ☀️</button> </nav> </header> <main>  <article> <h1>诊断级体渲染：原始数据才是底线</h1> <p class="post-meta"> 2026-10-30  · 体渲染 </p> <p>体渲染的演示总是很好看。转一圈，光影柔和，结构清晰，观众很容易点头。但在诊断场景里，好不好看是最不重要的一条标准。真正要问的只有一句：<strong>画面里的每一个体素，能不能追溯回原始数据？</strong></p>
+<h2 id="预览层和诊断层要分开">预览层和诊断层要分开</h2>
+<p>一个实用的分法是把渲染分成两层：</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>层</th><th>作用</th><th>允许什么</th></tr></thead><tbody><tr><td>预览层</td><td>快速看结构、讲清楚、做演示</td><td>学习到的重建、插值、平滑、风格化</td></tr><tr><td>诊断层</td><td>下判断、量尺寸、写结论</td><td>只能来自原始数据的直接映射，任何一步都要可复现</td></tr></tbody></table>
+<p>两层可以共存，但不能混用。把预览层的结果当成诊断依据，等于用一张效果图去量病灶大小，尺寸对了是运气，错了是事故。</p>
+<h2 id="三个检查点">三个检查点</h2>
+<p>拿到任何一个体渲染结果，先做三件事，再谈效果：</p>
+<ol>
+<li><strong>窗宽窗位是不是原始值？</strong> 传递函数改得再漂亮，也要能一键回到原始灰度映射，并且知道改了哪一段、改了多少。</li>
+<li><strong>插值有没有造出结构？</strong> 三线性插值会在边界处产生过渡带，看起来像是真实的薄层；高阶插值更平滑，也更会“补”出原本不存在的连续性。薄结构先看原始切片，再看渲染。</li>
+<li><strong>降噪和重建有没有吃掉细节？</strong> 降噪一定会牺牲高频信息，问题只在于牺牲的是噪声还是钙化点、小血管这类小结构。凡是说“去噪后更清晰”的结果，都要同时给出原始数据的对照。</li>
+</ol>
+<h2 id="一个反直觉的结论">一个反直觉的结论</h2>
+<p>渲染质量的上限，往往不是算法，而是数据的采集和标注。体素各向异性、层厚、伪影、配准误差，这些在原始数据里存在的问题，渲染不会修好，只会换一种方式呈现出来。把渲染器调得更“高级”，有时候只是在把数据问题藏得更深。</p>
+<p>所以诊断级体渲染的第一性原理很朴素：<strong>先保真，再谈美。</strong> 保真做不到，剩下的都是演示。</p>
+<blockquote>
+<p>补充一句冷水：任何不能逐体素追溯、不能复现传递函数和插值参数的渲染结果，都不应该出现在诊断结论的依据栏里，哪怕它看起来再像教科书插图。</p>
+</blockquote> </article> <p class="back"><a href="/">← 返回首页</a></p>  </main> <footer> <p>博客</p> </footer> </div> </body></html>
