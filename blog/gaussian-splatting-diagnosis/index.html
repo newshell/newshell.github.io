@@ -1,35 +1,66 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="高斯泼溅的画面很能打，但它重建的不是原始数据，而是对观测的拟合。拟合得越好，越要小心它在你没看的地方补了什么。"><title>高斯泼溅很好看，但先别拿它做诊断 — 博客</title><script>
-      (function () {
-        try {
-          var t = localStorage.getItem('theme');
-          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {}
-      })();
-    </script><style>:root{--bg: #fafaf9;--ink: #171717;--muted: #737373;--line: #e7e5e4;--accent: #2d4a3a;--accent-soft: #eef2ef;--code-bg: #1c1917;--code-ink: #fafaf9}[data-theme=dark]{--bg: #101210;--ink: #e7e5e4;--muted: #a3a3a3;--line: #292524;--accent: #a8c3b0;--accent-soft: #1c2a22;--code-bg: #0c0a09;--code-ink: #e7e5e4}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif;font-size:17px;line-height:1.9;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:4px}.wrap{max-width:720px;margin:0 auto;padding:0 1.5rem 5rem}.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:2rem 0 1.25rem;border-bottom:1px solid var(--line);margin-bottom:3rem}.brand{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;font-size:1.05rem;font-weight:600;letter-spacing:.22em;color:var(--ink)}.brand:hover{text-decoration:none}nav{display:flex;align-items:baseline;gap:1.5rem}nav a{color:var(--muted);font-size:.9rem;letter-spacing:.08em}nav a:hover{color:var(--ink)}.theme-btn{border:none;background:none;color:var(--muted);font-size:.9rem;letter-spacing:.08em;cursor:pointer;padding:0}.theme-btn:hover{color:var(--ink)}h1,h2,h3,h4,h5{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;line-height:1.45;font-weight:600}h1{font-size:2.1rem;margin:0 0 1rem;letter-spacing:.01em}h2{font-size:1.45rem;margin:2.5rem 0 1rem}h3{font-size:1.2rem;margin:2rem 0 .75rem}.hero{margin-bottom:3rem}.hero h1{font-size:2.6rem;margin-bottom:.5rem}.hero p{color:var(--muted);margin:0;font-size:.98rem}.hero-rule{width:2.5rem;height:2px;background:var(--accent);margin-top:1.5rem}.post-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}.post-row{padding:1.6rem 0;border-bottom:1px solid var(--line)}.post-row .post-date{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;color:var(--muted);letter-spacing:.06em;margin-bottom:.4rem}.post-row h3{margin:0 0 .35rem;font-size:1.35rem}.post-row h3 a{color:var(--ink)}.post-row h3 a:hover{color:var(--accent);text-decoration:none}.post-row p{color:var(--muted);margin:0;font-size:.95rem;line-height:1.7}.post-meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;color:var(--muted);letter-spacing:.04em}.tag{color:var(--accent);margin-left:.6rem}.tag:before{content:"· ";color:var(--muted)}article h1{font-size:2.2rem}article>p:first-of-type{font-size:1.05rem}blockquote{margin:1.5rem 0;padding:.25rem 0 .25rem 1.25rem;border-left:2px solid var(--accent);color:var(--muted)}pre{overflow-x:auto;padding:1.1rem 1.25rem;border-radius:6px;background:var(--code-bg);color:var(--code-ink);line-height:1.65;font-size:.88rem}pre code{background:none;padding:0;color:inherit}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--accent-soft);padding:.15em .4em;border-radius:4px}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem;line-height:1.6}th,td{border:none;border-bottom:1px solid var(--line);padding:.55rem .75rem .55rem 0;text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:500;letter-spacing:.04em}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px;display:block;margin:1.5rem auto}hr{border:none;border-top:1px solid var(--line);margin:2.5rem 0}footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;letter-spacing:.12em}.back{display:inline-block;margin-top:2rem;font-size:.95rem}@media(max-width:600px){body{font-size:16px}.hero h1,article h1{font-size:1.7rem}.topbar{flex-direction:column;gap:.75rem}}
-</style></head> <body> <div class="wrap"> <header class="topbar"> <a class="brand" href="/">博客</a> <nav> <a href="/">首页</a> <a href="/blog/">博文</a> <a href="/terms/">术语</a> <button class="theme-btn" type="button" onclick="(function(){var d=document.documentElement;var t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('theme',t)}catch(e){}})()">主题</button> </nav> </header> <main>  <article> <h1>高斯泼溅很好看，但先别拿它做诊断</h1> <p class="post-meta"> 2026-10-30  · 体渲染 </p> <p>高斯泼溅（Gaussian Splatting）这两年很火，原因不难理解：渲染快、画面好、交互顺滑。拿它做演示、做可视化、做产品原型，都没问题。但把它直接推到诊断场景之前，有几个结构性问题要先说清楚。</p>
-<h2 id="它拟合的是观测不是数据">它拟合的是观测，不是数据</h2>
-<p>高斯泼溅的本质，是用一堆三维高斯去拟合一组观测图像。拟合目标是“从这些角度看过去像”，而不是“这个体素的原始值是多少”。</p>
-<p>这带来一个根本差别：</p>
-<ul>
-<li><strong>体渲染</strong>：给定体素和传递函数，画面是确定性计算出来的，改参数能复现，错了能定位到某个体素。</li>
-<li><strong>高斯泼溅</strong>：画面是优化出来的，同一个场景换一组初始化、换一个正则项，结果可能不一样，而你很难说清某一个像素对应原始数据的哪一部分。</li>
-</ul>
-<p>拟合得越好，这个问题越隐蔽。因为好看的结果会让人默认它是对的。</p>
-<h2 id="三个具体风险">三个具体风险</h2>
-<ol>
-<li><strong>没观测到的地方会被“脑补”。</strong> 稀疏视角下，未覆盖区域的高斯分布是优化器填出来的，不是测出来的。填得合理是运气，填得离谱也不会在演示视角里露馅。</li>
-<li><strong>小结构最先丢。</strong> 优化目标通常是整体图像误差，小血管、钙化点这类只占几个像素的结构，对总误差贡献很小，最容易在优化里被平滑掉。</li>
-<li><strong>无法逐体素审计。</strong> 诊断需要的是“这个值从哪来”，而高斯参数没有一一对应的原始体素，审计链在第一步就断了。</li>
-</ol>
-<h2 id="那它适合干什么">那它适合干什么？</h2>
-<p>适合干的事其实很多，只是要摆对位置：</p>
-<ul>
-<li>快速预览、教学演示、跨科室沟通：非常适合，理解成本低。</li>
-<li>术前规划的可视化辅助：在有原始数据对照的前提下，作为第二视角参考。</li>
-<li>不适合干的事：单独作为诊断依据、单独用于测量、单独用于随访对比。</li>
-</ul>
-<p>一句话总结：<strong>高斯泼溅是很好的预览层，不是诊断层。</strong> 把它放在预览层，它是个好工具；把它推到诊断层，好看就成了风险。</p>
-<blockquote>
-<p>再补一句冷水：评价一个重建方法，不要只看它在演示视角下的 PSNR 和主观效果，要看它在未观测视角、小结构、噪声和伪影下的表现。演示视角永远是方法最想让你看的那一面。</p>
-</blockquote> </article> <p class="back"><a href="/">← 返回首页</a></p>  </main> <footer> <p>博客</p> </footer> </div> </body></html>
+<!doctype html><html lang="zh-CN"><head><meta name="description" content="梳理原始 3DGS、ClipGS、VEG、FactorSplat、FaCT-GS 和 CTBakeGS 的任务差异、公开结果与验证边界。"><title>医学体数据里的 Gaussian：表示、裁剪与传递函数 · codie lab</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script><link rel="canonical" href="https://blog.codie.uk/blog/gaussian-splatting-diagnosis/"></head><body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a><header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/">首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/">关于</a><a href="/terms/" >术语</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
+<main id="main"><header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> 图形渲染 · 2026-10-30</p><h1>医学体数据里的 Gaussian：表示、裁剪与传递函数<span class="accent">.</span></h1><p class="lead">都叫 Gaussian Splatting，背后却可能是新视角合成、电影级渲染代理、裁剪条件建模、TF 可编辑表示，或 CT 重建。先分清任务，再比较方法。</p></header><figure class="article-banner"><img src="/assets/illustrations/gs-method-map.svg" alt="医学 Gaussian 相关方法的任务分流"><figcaption>ENGINEERING DIAGRAM · 原创技术示意图，不代表临床影像或实验结果</figcaption></figure><div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#sec-1">先回到原始 3DGS</a><a href="#sec-2">五条路线</a><a href="#sec-3">ClipGS 与裁剪</a><a href="#sec-3b">XClipGS 解析裁剪</a><a href="#sec-4">VEG 与 FactorSplat</a><a href="#sec-5">FaCT-GS 与 CTBakeGS</a><a href="#sec-6">验证指标</a><a href="#sec-7">落地顺序</a><a href="#sec-8">结论</a><a href="#sec-9">公开论文与代码</a></aside><article class="prose">
+<p>讨论医学 3D Gaussian Splatting 时，经常把“重建体数据”“复现一张电影级渲染”“支持任意裁剪”和“实时改传递函数”放在同一个篮子里。它们都可能用到 Gaussian，但优化目标、输入数据和能支持的交互并不一样。先把任务分清，才知道应该比较什么。</p>
+<p>本文只整理公开论文和公开实验设置。文中数字均标注为论文报告结果，不代表独立复现；概念图也不是 CT/MR 实验数据。</p>
+<h2 id="sec-1">先回到原始 3DGS：它优化的是什么</h2>
+<figure><img src="/assets/illustrations/gs-method-map.svg" loading="lazy" alt="医学 Gaussian 方法的不同任务路线图"><figcaption>图 1｜Gaussian 方法的任务分流：新视角合成、体渲染代理、条件交互、重建和外观烘焙不是同一个问题。</figcaption></figure>
+<p>原始 3DGS 面向多视角照片的新视角合成。场景由一组各向异性三维 Gaussian 表示，每个基元具有中心位置、协方差、不透明度和外观参数。协方差可由旋转与尺度构造：</p>
+<pre class="equation"><code>G(x) = exp[-½ (x - μ)ᵀ Σ⁻¹ (x - μ)]
+Σ = R · S · Sᵀ · Rᵀ</code></pre>
+<p>训练时，Gaussian 被投影到屏幕空间，经过可微光栅化和按深度排序的 alpha compositing，去拟合训练相机看到的 RGB 图像。它的目标是让观察图像重现得足够好，而不是天然保存 CT 的 HU、MR 的原始信号或体素级测量语义。</p>
+<p>这并不是说 3DGS 不能用于体数据，而是说必须额外回答：Gaussian 的参数如何关联原始体素？训练视图覆盖哪些 TF 和相机？交互改变的是外观、可见性、几何，还是原始数据本身？</p>
+<h2 id="sec-2">五条路线，解决五类不同问题</h2>
+<table><thead><tr><th>路线</th><th>主要输入</th><th>主要目标</th><th>关键边界</th></tr></thead><tbody><tr><td>原始 3DGS / 新视角合成</td><td>多视角照片</td><td>复现训练视图并合成新视角</td><td>没有天然体素强度语义</td></tr><tr><td>电影级渲染代理</td><td>高质量体渲染图像</td><td>快速复现固定外观</td><td>换 TF 或光照可能需要重建代理</td></tr><tr><td>裁剪条件代理</td><td>不同视角与裁剪平面的参考渲染</td><td>在裁剪交互中控制基元可见性和形态</td><td>裁剪平面是额外条件维度</td></tr><tr><td>体数据 / TF 感知表示</td><td>体素值、区域信息和参考渲染</td><td>保留强度关联，支持 TF 编辑</td><td>要验证未见 TF 和结构覆盖</td></tr><tr><td>CT 重建 / 外观烘焙</td><td>X 射线投影，或已完成的体渲染</td><td>求解 CT 体数据，或把既定外观转成 splat</td><td>重建、烘焙都不等于任意可编辑的体渲染</td></tr></tbody></table>
+<h2 id="sec-3">ClipGS：裁剪平面不只是删掉 Gaussian 中心</h2>
+<p>ClipGS（MICCAI 2025）针对电影级医学体数据可视化中的交互裁剪。一个 Gaussian 不是没有体积的点：它有空间范围。若只根据中心 <code>μ</code> 在裁剪平面的哪一侧来决定保留或删除，那么与平面相交的 Gaussian 可能被整体保留，也可能被整体丢弃，切面附近就容易出现浮点、缺口或不连续。</p>
+<figure><img src="/assets/illustrations/clipping.svg" loading="lazy" alt="裁剪平面穿过高斯空间支持域的概念图"><figcaption>图 2｜高斯基元有空间支持域。中心点分类无法完整表达平面穿过基元时的部分可见性。</figcaption></figure>
+<p>论文的 Learnable Truncation（LT）为每个 Gaussian 增加可学习的截断属性。用裁剪平面法线 <code>n</code> 和偏移 <code>z</code> 表示平面，论文将用于判断的标量写成：</p>
+<pre class="equation"><code>m = (μ + δ) · n
+M = 1[m &lt; z]</code></pre>
+<p>其中 <code>δ</code> 表示相对于 Gaussian 均值的可学习偏移。LT 使用 straight-through estimator，让前向可见性接近离散判断，同时在反向传播时借助平滑函数传递梯度。这样训练可以学习哪些基元应该响应某个裁剪位置，而不是把不可微的硬开关直接交给优化器。</p>
+<p>论文还提出 Adaptive Adjustment Model（AAM）：把 Gaussian 位置和裁剪平面参数编码后送入小型 MLP，预测可见基元的位置、旋转和尺度调整量。直观上，LT 负责“哪些基元参与”，AAM 负责“切面附近如何连续地修整可见基元”。作者采用两阶段优化：先训练 LT 获得粗略模型，再加入 AAM 细化裁剪平面维度上的连续性。</p>
+<p>论文在五个体数据场景上构建训练与测试视图，报告平均 PSNR 36.635、156 FPS 和 16.1 MB 模型大小；其设置包括 800×800 图像和 RTX 4090。这里必须把数字放回实验条件中理解：它说明该方法在论文定义的视角与裁剪任务上有竞争力，不等于任意数据、任意裁剪轨迹或临床任务都得到验证。</p>
+<h2 id="sec-3b">XClipGS：把裁剪变成解析的逐像素算子</h2>
+<p><a href="https://arxiv.org/abs/2608.07760" rel="noopener noreferrer">XClipGS（Gao 等，2026 年 8 月）</a>与 ClipGS 的关键区别，不是把学习到的截断参数做得更复杂，而是先把<strong>半空间裁剪的数学运算</strong>从学习模型中分离出来。ClipGS 通过 Learnable Truncation 和 AAM 学习基元可见性及形变；XClipGS 则在 EWA splatting 使用的局部仿射投影假设下，为被裁剪的 Gaussian 推导出逐像素的闭式积分，不需要额外的裁剪 MLP。</p>
+<h3 id="sec-3b-math">条件 Gaussian CDF：为什么不是整颗保留或删除</h3>
+<p>把三维 Gaussian 与裁剪半空间相交后沿视线积分，结果可以分解为<strong>原有二维 splat footprint</strong>乘以<strong>条件高斯累积分布函数（CDF）给出的保留质量比例</strong>。该 CDF 的自变量在局部仿射投影下是屏幕像素坐标的仿射函数。于是同一个 Gaussian 在切面附近不同像素上能有不同的保留比例，而不是仅根据中心点所在侧做一次二值裁决。</p>
+<pre class="equation"><code>clipped_footprint(pixel)
+  = ordinary_2D_footprint(pixel) × conditional_CDF(pixel, plane)</code></pre>
+<p>这里的“exact”有严格前提：<strong>对单个 Gaussian 的半空间积分，在局部仿射 EWA 模型下是精确的</strong>，并不代表整条渲染管线已经精确求解真实体积积分。投影近似、按中心深度排序、alpha 合成和训练数据覆盖不足等误差仍然存在；换成不同的精确透视射线模型时，也不能直接套用同一套系数。</p>
+<h3 id="sec-3b-train">内部可见性仍然需要监督</h3>
+<p>准确裁剪算子只能解决“如何切”；无法凭空恢复训练视图从未约束过的内部结构。XClipGS 使用不同方向、不同距离的裁剪平面参考视图，在训练阶段通过同一个可微裁剪算子监督隐藏内部。论文还采用<strong>成对裁剪 / 未裁剪视图</strong>进行 cut-face 评估，以 difference-referenced cut error（CDE）和被裁掉一侧的 leakage（Leak）捕捉全图 PSNR 容易稀释的局部错误。</p>
+<h3 id="sec-3b-compare">与 ClipGS 的结果和工程取舍</h3>
+<table><thead><tr><th>比较点</th><th>ClipGS</th><th>XClipGS</th></tr></thead><tbody>
+<tr><td>裁剪建模</td><td>学习截断属性 + AAM 形变网络</td><td>局部仿射 EWA 下解析半空间裁剪 / 条件 Gaussian CDF</td></tr>
+<tr><td>裁剪处的可见性</td><td>基元级学习响应与形变</td><td>每个像素连续计算被保留的 Gaussian 质量</td></tr>
+<tr><td>内部结构</td><td>通过训练裁剪条件学习</td><td>多法线、多距离参考裁剪视图提供监督</td></tr>
+<tr><td>最敏感的验证</td><td>裁剪视图重现与连续性</td><td>成对 cut-face、CDE、Leak、未见偏移/任意法线</td></tr>
+</tbody></table>
+<p>在 XClipGS 论文<strong>统一的八个 CT/MRI 数据集比较设置</strong>中，作者报告平均 PSNR 为 XClipGS 33.56 dB、ClipGS 32.34 dB，渲染帧率超过 650 FPS、对照约 278 FPS；体素轴向切面带状区域的平均 SSIM 从 0.809 提升至 0.860，Leak 约降低 40 倍。<strong>这些是论文报告值，不是独立复现结果</strong>，更不能与前面 ClipGS 原论文的 156 FPS / 36.635 PSNR 直接横向拼接：数据集、硬件、分辨率和评测协议不同。</p>
+<p><strong>工程判断：</strong>如果目标是交互裁剪与切面局部保真，XClipGS 的解析算子比额外学习一个裁剪网络更值得优先评估；但它没有自动解决 TF 任意编辑、扫描强度值的可追溯性或全局照明变化。落地时应重点测试未见法线、连续移动切面、重叠透明结构、切面泄漏、数值稳定性和每像素 CDF 的 GPU 计算开销。</p>
+<h2 id="sec-4">VEG 与 FactorSplat：把传递函数重新带回 Gaussian</h2>
+<p>固定外观代理的一个明显局限是：训练时某个组织被设成透明，代理可能根本没有保留它；之后换一条 TF 想把它显示出来，模型却没有足够的基元可供恢复。若要支持 TF 编辑，Gaussian 必须与体素强度或材料区域建立更明确的联系。</p>
+<p>Volume Encoding Gaussians（VEG）是一个重要方向：将标量信息编码到 Gaussian 中，渲染时再用新的颜色和不透明度映射。它把 TF 从训练时烘焙的外观，变成推理时可以输入的控制量。FactorSplat 的论文把这个问题进一步推进到区域相关 TF：同一个强度值在不同分割区域可以对应不同曲线。</p>
+<figure><img src="/assets/illustrations/factorsplat-branches.svg" loading="lazy" alt="局部传递函数查表和低秩外观残差共同调制 Gaussian 外观的示意图"><figcaption>图 3｜FactorSplat 公开论文中的双分支思路：物理 TF 查表提供直接响应，低秩学习分支补偿参考渲染的残差。</figcaption></figure>
+<p>FactorSplat 的核心不是让每条 TF 都重新训练一套 Gaussian，而是共享几何和方向相关外观，并把 TF 变化映射到每个基元的局部外观上。可以拆成四个部件：</p>
+<ul><li><strong>局部材料描述：</strong>初始化时为 Gaussian 记录其空间支持范围内的区域与强度样本，权重随 Gaussian 的尺度和协方差变化。</li><li><strong>物理查表分支：</strong>根据新旧 TF 的 RGBA 差异，直接估计这个 Gaussian 应有的颜色和透明度变化。</li><li><strong>低秩残差分支：</strong>共享函数编码器把曲线变化编码成低维特征，再由每个 Gaussian 的低秩因子预测补偿量，拟合电影级渲染中不完全由局部 TF 查表解释的部分。</li><li><strong>可见性与覆盖：</strong>对区域级隐藏操作使用解析 gate；剪枝时考虑训练 TF 集合中任一 preset 下的最大 opacity，避免只在某一外观下可见的结构被过早删掉。</li></ul>
+<p>一个关键设计是：论文主要修改 view-independent 的 DC 颜色和 opacity，方向相关 SH 系数保持 TF-independent；TF 切换时更新并缓存外观属性，相机移动时复用缓存。这把“切换外观”和“移动相机”分成了两个不同的计算阶段。</p>
+<h3 id="sec-4a">实验结果应该怎样读</h3>
+<p>FactorSplat 在七个 CT/MR 扫描上评估，每个扫描使用 24 个训练 preset，并设置验证、插值、未见组合和 OOD 编辑；所有 preset 共享 held-out 相机视角。作者报告相对 region-aware VEG 的七扫描平均 PSNR 提升，在验证、插值、组合和 OOD split 上分别为 1.45、1.52、1.10 和 1.41 dB；改变区域误差在 28 个 scene–split 对比中有 19 个更低。</p>
+<p>但同一篇论文也给出了很重要的反例：preset-specific specialist 在 OOD split 上仍有约 5.2 dB 的平均 PSNR 优势，说明超出训练编辑分布的新操作仍然困难。作者还指出局部条件无法充分响应远处 TF 修改引起的全局光照变化；持久化材料描述可能随 Gaussian 中心移动而失配；区域 gate 是整颗 Gaussian 的开关，并不是精确到体素边界的几何裁切。</p>
+<p>性能数字也要分开看：论文在 B200、1600×1600 设置下报告缓存快速渲染平均 524 FPS、TF 切换平均 1.17 ms；PSNR 使用质量渲染器测量，FPS 使用 fast renderer。二者不是同一个渲染路径的同步质量/性能指标，不能直接把它们拼成“524 FPS 下仍保持该 PSNR”。</p>
+<h2 id="sec-5">FaCT-GS 与 CTBakeGS：名字都带 GS，任务却不同</h2>
+<p><strong>FaCT-GS</strong> 处理的是 CT 稀疏视角重建问题：输入是 X 射线投影，目标是恢复三维 CT 体数据。它优化 voxelization 和 rasterization pipeline，并支持用已有体数据拟合 Gaussian 作为 warm start 或压缩表示。论文报告相较此前 GS CT 方法，在 512×512 投影下超过 4 倍、2K 投影下超过 13 倍的速度提升；但作者也明确指出，学习式方法尚未成熟到可以直接取代成熟的经典重建算法。它与“把已有 CT 快速渲染成可交互模型”不是同一赛道。</p>
+<p><strong>CTBakeGS</strong>（2026 年 10 月的 arXiv 预印本）走的是另一条路：不训练网络，而是把已经选定 TF 和光照的 CT 体渲染直接烘焙成 Gaussian。它用自适应 octree 把体数据划分为不同大小的 cell，将 cell 的颜色和 opacity 映射到 Gaussian，并处理重叠、抗锯齿以及低于 8-bit opacity floor 的弱 splat。论文在六个公开 CT 扫描、三种 TF 上测试；两百万 splat 的宽视角 PSNR，骨、增强血管、皮肤与骨分别约 32.6、30.1、32.3 dB，MacBook Pro M4 Max 上 800×800 平均约 68 FPS。</p>
+<p>CTBakeGS 的工程价值很清晰：把高质量体渲染快速转换为普通 3DGS viewer 可以播放的文件。但颜色和光照是在转换时烘焙的，所以它更像“固定外观的轻量分发格式”，不是保留原始 HU 并支持任意 TF 编辑的体数据替代物。论文也显示 close-up 视角的 PSNR 比 wide view 低约 3 dB，细节放大是必须单独检查的场景。</p>
+<h2 id="sec-6">不要只用一张 PSNR 表来决定路线</h2>
+<table><thead><tr><th>任务</th><th>必要测试</th><th>推荐指标</th><th>常见误判</th></tr></thead><tbody><tr><td>固定外观代理</td><td>held-out cameras、近景 ROI、薄结构</td><td>PSNR / SSIM / LPIPS + 局部差异</td><td>全图 PSNR 高就认为结构可靠</td></tr><tr><td>裁剪交互</td><td>平面连续移动、反向移动、不同法线和切入位置</td><td>边界连续性、局部差异、帧时间</td><td>只测几个静态裁剪位置</td></tr><tr><td>TF 编辑</td><td>训练内插值、未见组合、OOD、组织隐藏与重新显示</td><td>TF delta error、unchanged-region leak、局部 ROI</td><td>只比较默认 preset 的全图 PSNR</td></tr><tr><td>体数据重建</td><td>不同投影数量、角度覆盖、噪声和先验</td><td>体数据误差、结构误差、投影一致性</td><td>拿渲染图像相似度替代重建质量</td></tr><tr><td>固定外观烘焙</td><td>wide / close-up、斜视角、透明薄层、不同设备</td><td>局部误差、透明度累计、显存与帧时间</td><td>把烘焙文件当成可编辑原始体数据</td></tr></tbody></table>
+<p>全图 PSNR 很容易被大面积背景或稳定区域主导。对于 TF 编辑，更有意义的做法是同时比较变化前后的差分图：参考渲染的变化量是 <code>Dgt = Igt(T) - Igt(T₀)</code>，代理渲染的变化量是 <code>Dpred = Ipred(T) - Ipred(T₀)</code>。再只在真实发生变化的 mask 内统计误差，并在未变化区域统计不应出现的泄漏。这样才能区分“整张图本来就很像”和“用户刚刚编辑的那块区域确实响应正确”。</p>
+<h2 id="sec-7">如果要落地，建议按这个顺序做</h2>
+<ol><li><strong>先定义任务：</strong>是固定外观演示、裁剪浏览、TF 编辑、稀疏重建，还是低成本分发？不要用一个 benchmark 同时回答所有问题。</li><li><strong>保留原始体数据作为参照：</strong>Gaussian 是代理或派生表示时，必须能回到原始 volume、spacing、坐标和强度语义。</li><li><strong>从最小可验证场景开始：</strong>选一个公开数据集、一个固定 TF、少量相机和一个明确 ROI，先建立稳定 reference renderer。</li><li><strong>逐个增加自由度：</strong>先视角，再裁剪，再 TF，再光照。每增加一种交互，都要增加相应的 hold-out 条件。</li><li><strong>把小结构放进验收：</strong>单独看细血管、薄骨边界、低对比组织和透明薄层，不让大面积容易区域掩盖局部失败。</li><li><strong>把质量与性能分开测：</strong>记录 quality renderer 与 fast renderer 的差异、TF 切换延迟、相机导航帧率、模型大小和内存峰值。</li></ol>
+<blockquote>Gaussian 代理最值得追求的不是“把体渲染替换掉”，而是在明确的交互范围内，用更便宜的表示保留足够多的可解释行为。超出这个范围时，应当能识别边界并回退到原始体数据。</blockquote>
+<h2 id="sec-8">结论：先问它表示了什么，再问它跑多快</h2>
+<p>ClipGS 证明了裁剪平面可以作为条件维度来建模；XClipGS 进一步在局部仿射 EWA 假设下将裁剪写成解析的逐像素算子，并强调隐藏内部的训练监督；VEG 和 FactorSplat 把强度与 TF 控制重新引入 Gaussian；CTBakeGS 展示了不训练、直接烘焙固定外观的轻量路线；FaCT-GS 则属于从投影重建 CT 的逆问题。它们的共同点是用 Gaussian 表示降低某些计算成本，差异在于究竟保存了哪些数据语义和交互自由度。</p>
+<p>无论哪条路线，图像相似度都不是临床有效性的充分证据。研究型代理必须保留原始扫描作为核查依据，并对具体任务做独立验证；目前这些论文的图像指标和帧率不能被解读为已经完成临床诊断验证。</p>
+<h2 id="sec-9">公开论文与代码</h2>
+<ul class="references"><li><a href="https://arxiv.org/abs/2308.04079" rel="noopener noreferrer">Kerbl et al., 3D Gaussian Splatting for Real-Time Radiance Field Rendering, 2023</a>：原始 3DGS。</li><li><a href="https://papers.miccai.org/miccai-2025/0155-Paper0380.html" rel="noopener noreferrer">Li et al., ClipGS, MICCAI 2025</a>：裁剪条件下的 Gaussian 可见性和自适应调整；<a href="https://github.com/med-air/ClipGS" rel="noopener noreferrer">公开代码</a>。</li><li><a href="https://arxiv.org/abs/2608.07760" rel="noopener noreferrer">Gao et al., XClipGS: Exact Half-Space Clipping for Medical Volume Gaussian Splatting, arXiv:2608.07760, 2026</a>：解析逐像素裁剪、内部监督和 cut-face 局部指标；<a href="https://gaozhongpai.github.io/XClipGS/" rel="noopener noreferrer">公开项目页面</a>。</li><li><a href="https://doi.org/10.1109/TVCG.2026.3694460" rel="noopener noreferrer">Dyken et al., Volume Encoding Gaussians, TVCG 2026</a>：与标量值关联的 TF-agnostic Gaussian 表示。</li><li><a href="https://arxiv.org/abs/2610.02382" rel="noopener noreferrer">Gao et al., FactorSplat, arXiv:2610.02382, 2026</a>：区域 TF、局部查表与低秩残差；预印本。</li><li><a href="https://arxiv.org/abs/2604.01844" rel="noopener noreferrer">Pieta et al., FaCT-GS, arXiv:2604.01844, 2026</a>：CT 稀疏投影重建；<a href="https://github.com/PaPieta/fact-gs" rel="noopener noreferrer">公开实现</a>。</li><li><a href="https://arxiv.org/abs/2610.37406" rel="noopener noreferrer">Fukuda et al., CTBakeGS, arXiv:2610.37406, 2026</a>：无需训练的 CT 外观烘焙；预印本。</li></ul><div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-10-30</span></div></article></div></main><footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>原理、实现与验证，尽量放在同一篇文章里</span></footer><script src="/assets/site.js" defer></script></body></html>
