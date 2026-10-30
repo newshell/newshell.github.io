@@ -18,7 +18,9 @@ for file in html_files:
     raw=file.read_text(encoding='utf-8')
     if '<html lang=' not in raw:bad.append(f'{file}: missing lang')
     p=Links();p.feed(raw)
-    if p.scripts:bad.append(f'{file}: remote scripts not allowed')
+    allowed_remote_scripts = {'https://challenges.cloudflare.com/turnstile/v0/api.js'}
+    unexpected_scripts = [url for url in p.scripts if url not in allowed_remote_scripts]
+    if unexpected_scripts:bad.append(f'{file}: remote scripts not allowed: {unexpected_scripts}')
     for tag,link in p.links:
         if not link.startswith('/') or link.startswith('//'):continue
         path=link.split('?',1)[0].split('#',1)[0]
