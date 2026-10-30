@@ -1,47 +1,9 @@
-<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="体渲染做得好不好看是其次，先问一句：画面里的每一个体素，能不能追溯回原始数据？追溯不回去的漂亮，都是预览，不是诊断。"><title>诊断级体渲染：原始数据才是底线 — 博客</title><script>
-      (function () {
-        try {
-          var t = localStorage.getItem('theme');
-          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-          document.documentElement.setAttribute('data-theme', t);
-        } catch (e) {}
-      })();
-    </script><style>:root{--bg: #fafaf9;--ink: #171717;--muted: #737373;--line: #e7e5e4;--accent: #2d4a3a;--accent-soft: #eef2ef;--code-bg: #1c1917;--code-ink: #fafaf9}[data-theme=dark]{--bg: #101210;--ink: #e7e5e4;--muted: #a3a3a3;--line: #292524;--accent: #a8c3b0;--accent-soft: #1c2a22;--code-bg: #0c0a09;--code-ink: #e7e5e4}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif;font-size:17px;line-height:1.9;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:4px}.wrap{max-width:720px;margin:0 auto;padding:0 1.5rem 5rem}.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:2rem 0 1.25rem;border-bottom:1px solid var(--line);margin-bottom:3rem}.brand{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;font-size:1.05rem;font-weight:600;letter-spacing:.22em;color:var(--ink)}.brand:hover{text-decoration:none}nav{display:flex;align-items:baseline;gap:1.5rem}nav a{color:var(--muted);font-size:.9rem;letter-spacing:.08em}nav a:hover{color:var(--ink)}.theme-btn{border:none;background:none;color:var(--muted);font-size:.9rem;letter-spacing:.08em;cursor:pointer;padding:0}.theme-btn:hover{color:var(--ink)}h1,h2,h3,h4,h5{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;line-height:1.45;font-weight:600}h1{font-size:2.1rem;margin:0 0 1rem;letter-spacing:.01em}h2{font-size:1.45rem;margin:2.5rem 0 1rem}h3{font-size:1.2rem;margin:2rem 0 .75rem}.hero{margin-bottom:3rem}.hero h1{font-size:2.6rem;margin-bottom:.5rem}.hero p{color:var(--muted);margin:0;font-size:.98rem}.hero-rule{width:2.5rem;height:2px;background:var(--accent);margin-top:1.5rem}.post-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}.post-row{padding:1.6rem 0;border-bottom:1px solid var(--line)}.post-row .post-date{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;color:var(--muted);letter-spacing:.06em;margin-bottom:.4rem}.post-row h3{margin:0 0 .35rem;font-size:1.35rem}.post-row h3 a{color:var(--ink)}.post-row h3 a:hover{color:var(--accent);text-decoration:none}.post-row p{color:var(--muted);margin:0;font-size:.95rem;line-height:1.7}.post-meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;color:var(--muted);letter-spacing:.04em}.tag{color:var(--accent);margin-left:.6rem}.tag:before{content:"· ";color:var(--muted)}article h1{font-size:2.2rem}article>p:first-of-type{font-size:1.05rem}blockquote{margin:1.5rem 0;padding:.25rem 0 .25rem 1.25rem;border-left:2px solid var(--accent);color:var(--muted)}pre{overflow-x:auto;padding:1.1rem 1.25rem;border-radius:6px;background:var(--code-bg);color:var(--code-ink);line-height:1.65;font-size:.88rem}pre code{background:none;padding:0;color:inherit}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--accent-soft);padding:.15em .4em;border-radius:4px}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem;line-height:1.6}th,td{border:none;border-bottom:1px solid var(--line);padding:.55rem .75rem .55rem 0;text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:500;letter-spacing:.04em}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px;display:block;margin:1.5rem auto}hr{border:none;border-top:1px solid var(--line);margin:2.5rem 0}footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;letter-spacing:.12em}.back{display:inline-block;margin-top:2rem;font-size:.95rem}@media(max-width:600px){body{font-size:16px}.hero h1,article h1{font-size:1.7rem}.topbar{flex-direction:column;gap:.75rem}}
-</style></head> <body> <div class="wrap"> <header class="topbar"> <a class="brand" href="/">博客</a> <nav> <a href="/">首页</a> <a href="/blog/">博文</a> <button class="theme-btn" type="button" onclick="(function(){var d=document.documentElement;var t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('theme',t)}catch(e){}})()">主题</button> </nav> </header> <main>  <article> <h1>诊断级体渲染：原始数据才是底线</h1> <p class="post-meta"> 2026-10-30  · 体渲染 </p> <p>体渲染的演示总是很好看。转一圈，光影柔和，结构清晰，观众很容易点头。但在诊断场景里，好不好看是最不重要的一条标准。真正要问的只有一句：<strong>画面里的每一个体素，能不能追溯回原始数据？</strong></p>
-<h2 id="预览层和诊断层要分开">预览层和诊断层要分开</h2>
-<p>一个实用的分法是把渲染分成两层：</p>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-<table><thead><tr><th>层</th><th>作用</th><th>允许什么</th></tr></thead><tbody><tr><td>预览层</td><td>快速看结构、讲清楚、做演示</td><td>学习到的重建、插值、平滑、风格化</td></tr><tr><td>诊断层</td><td>下判断、量尺寸、写结论</td><td>只能来自原始数据的直接映射，任何一步都要可复现</td></tr></tbody></table>
-<p>两层可以共存，但不能混用。把预览层的结果当成诊断依据，等于用一张效果图去量病灶大小，尺寸对了是运气，错了是事故。</p>
-<h2 id="三个检查点">三个检查点</h2>
-<p>拿到任何一个体渲染结果，先做三件事，再谈效果：</p>
-<ol>
-<li><strong>窗宽窗位是不是原始值？</strong> 传递函数改得再漂亮，也要能一键回到原始灰度映射，并且知道改了哪一段、改了多少。</li>
-<li><strong>插值有没有造出结构？</strong> 三线性插值会在边界处产生过渡带，看起来像是真实的薄层；高阶插值更平滑，也更会“补”出原本不存在的连续性。薄结构先看原始切片，再看渲染。</li>
-<li><strong>降噪和重建有没有吃掉细节？</strong> 降噪一定会牺牲高频信息，问题只在于牺牲的是噪声还是钙化点、小血管这类小结构。凡是说“去噪后更清晰”的结果，都要同时给出原始数据的对照。</li>
-</ol>
-<h2 id="一个反直觉的结论">一个反直觉的结论</h2>
-<p>渲染质量的上限，往往不是算法，而是数据的采集和标注。体素各向异性、层厚、伪影、配准误差，这些在原始数据里存在的问题，渲染不会修好，只会换一种方式呈现出来。把渲染器调得更“高级”，有时候只是在把数据问题藏得更深。</p>
-<p>所以诊断级体渲染的第一性原理很朴素：<strong>先保真，再谈美。</strong> 保真做不到，剩下的都是演示。</p>
-<blockquote>
-<p>补充一句冷水：任何不能逐体素追溯、不能复现传递函数和插值参数的渲染结果，都不应该出现在诊断结论的依据栏里，哪怕它看起来再像教科书插图。</p>
-</blockquote> </article> <p class="back"><a href="/">← 返回首页</a></p>  </main> <footer> <p>博客</p> </footer> </div> </body></html>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="description" content="传递函数、插值、采样、原始切片核对：什么样的体渲染结果才经得起追问？"><meta name="theme-color" content="#0a111a"><title>诊断级体渲染：从视觉效果到可信证据 · codie / lab</title><link rel="canonical" href="https://blog.codie.uk/blog/diagnostic-volume-rendering/"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="light"?"light":"dark"}catch(e){document.documentElement.dataset.theme="dark"}</script></head><body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a><header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark">c/</span><span><strong>codie<span>.</span>lab</strong><small>ENGINEERING FIELD NOTES</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/" >01 / 首页</a><a href="/blog/" aria-current="page">02 / 文章</a><a href="/about/" >03 / 关于</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深浅色主题">◐</button></nav></div></header><main id="main"><header class="shell article-heading"><a class="quietlink" href="/blog/">← BACK TO INDEX</a><p class="meta"><span class="signal"></span> RENDERING / 01 · 2026-10-30</p><h1>诊断级体渲染：从视觉效果到可信证据<span class="accent">.</span></h1><p class="lead">画面足够漂亮，并不意味着对组织结构的解释足够可靠。真正重要的是输入数据、可复现参数和失效边界。</p></header><figure class="article-banner"><img src="/assets/illustrations/volume.svg" alt="技术概念示意图"><figcaption>FIGURE / CONCEPT ILLUSTRATION · NOT EXPERIMENTAL DATA</figcaption></figure><div class="shell article-layout"><aside class="toc"><span class="toc-title">ON THIS PAGE</span><a href="#sec-1">漂亮和可信不是同一件事</a><a href="#sec-2">从输入到像素，需要留下什么</a><a href="#sec-3">三种值得专门检查的失效模式</a><a href="#sec-7">一个可复现的对照流程</a><a href="#sec-8">结语</a></aside><article class="prose"><p>体渲染最容易被看到的部分是光影：软阴影、材质、表面细节和层次。但在医学场景里，我更愿意先问：我们能否解释这张图从哪里来，以及它可能在哪些地方失真？</p>
+<h2 id="sec-1">漂亮和可信不是同一件事</h2><p>体绘制把原始体数据、采样策略、传递函数和光照模型合成为二维图像。每一步都有合理的近似，也都可能影响薄结构、低对比组织或边界的位置。</p>
+<figure><img src="/assets/illustrations/volume.svg" loading="lazy" alt="概念图：体数据、传递函数与图像合成流程"><figcaption>图 1｜体绘制流程示意，不是真实 CT 数据或诊断图像。</figcaption></figure>
+<p>不同任务对画面的要求不同。教学演示可以允许风格化，定量测量则应由经过验证的数据处理与测量链路承担。不能因为图像来自 CT，就默认渲染结果具有相同的量化可靠性。</p>
+<h2 id="sec-2">从输入到像素，需要留下什么</h2>
+<table><tr><th>环节</th><th>需要记录</th><th>风险</th></tr><tr><td>数据来源</td><td>体素间距、层厚、重建版本与单位</td><td>几何尺度或强度含义错误</td></tr><tr><td>采样与插值</td><td>步长、插值核、边界处理</td><td>薄结构模糊或边缘偏移</td></tr><tr><td>传递函数</td><td>强度到颜色及透明度的映射</td><td>组织可见性被设计选择改变</td></tr><tr><td>光照与后处理</td><td>梯度、阴影、去噪和锐化参数</td><td>视觉对比并不对应真实物理边界</td></tr></table>
+<h2 id="sec-3">三种值得专门检查的失效模式</h2><h3 id="sec-4">1. 薄结构被插值改变</h3><p>当层厚与像内分辨率差异较大时，渲染出的连续结构未必具有相同的空间证据。针对血管细支、骨皮质等目标，应回到原始切片和合适的多平面重建视图进行核对。</p><h3 id="sec-5">2. 传递函数改变了可见性</h3><p>同一份数据可以呈现完全不同的组织关系。这是体绘制的强项，也是解释结果时需要交代的条件。至少应保存可复用的 TF 设置，而不只保存最终截图。</p><h3 id="sec-6">3. 降噪让局部更美观却更不确定</h3><p>去噪可能抑制噪声，也可能削弱孤立小结构。说“更清晰”之前，应说明清晰的定义：是视觉观感、边缘一致性，还是某个具体任务的指标？</p>
+<h2 id="sec-7">一个可复现的对照流程</h2><ol><li>固定同一份数据及其 spacing、强度范围和预处理版本。</li><li>保存相机、TF、步长、插值和光照参数。</li><li>选取预先定义的 ROI：高对比边界、细血管、低对比区域与伪影区域。</li><li>同时查看原始切片、MPR 和 DVR 图像，记录分歧而不是只挑选效果最好的角度。</li><li>区分已测量的数据与尚未实测的解释，不虚构诊断准确率。</li></ol>
+<p>这还不是一份完整的临床验证协议，但足以让一次渲染效果讨论从“感觉更清楚”转向“哪里更准确、哪里需要谨慎”。</p><h2 id="sec-8">结语</h2><p>画面质量很重要，但质量不是单独存在的。对输入、参数和失效边界保持可追溯，才能让图形算法真正参与可靠的医学可视化工作流。</p><div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-10-30</span></div></article></div></main><footer class="shell site-foot"><span>● CODIE / FIELD NOTES · 2017–2026</span><span>区分观察、解释与尚待验证的假设</span></footer><script src="/assets/site.js" defer></script></body></html>
