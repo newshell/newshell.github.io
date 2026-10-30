@@ -1,0 +1,122 @@
+<!doctype html><html lang="zh-CN"><head><meta name="description" content="从控制面、DERP、中继、NAT 穿透与 Endpoint 发布出发，逐层排查 Headscale 与 Stash 环境下的 Tailscale 直连失败。"><title>Tailscale 为什么没有直连：Headscale、DERP 与 Stash 排障笔记 · codie lab</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script><link rel="canonical" href="https://blog.codie.uk/blog/tailscale-headscale-direct/"></head><body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a><header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/">首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/">关于</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
+<main id="main">
+<header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> 网络工程 · 2026-10-30</p><h1>Tailscale 为什么没有直连：Headscale、DERP 与 Stash 排障笔记<span class="accent">.</span></h1><p class="lead">控制面注册成功为什么仍然无法直连？从 DERP Map、Endpoint 发现与分发、NAT hairpin 和 Stash 路由逐层定位，而不是反复猜端口。</p></header>
+<figure class="article-banner"><img src="/assets/illustrations/tailscale-planes.svg" alt="Tailscale 控制面、直连数据面和 DERP 中继分层架构概念图"><figcaption>网络原理示意图 · 虚构拓扑，不含真实家庭网络信息</figcaption></figure>
+<div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#plane">控制面不等于数据面</a><a href="#flow">一次连接如何建立</a><a href="#symptoms">先记录症状，而不是猜 NAT</a><a href="#matrix">最小诊断矩阵</a><a href="#endpoints">端点的四个层次</a><a href="#dualurl">双控制地址与内网回环</a><a href="#stash">Stash 的额外检查</a><a href="#procedure">一步步定位问题</a><a href="#examples">三个容易误判的场景</a><a href="#security">安全与公开原则</a><a href="#references">公开资料</a></aside>
+<article class="prose">
+<p>有一个非常容易误导人的现象：两台常开的设备已经可以通过 Tailscale <strong>direct</strong> 通信，移动端却仍然显示 <strong>DERP relay</strong>；换成家庭 Wi‑Fi 后，有时又表现得和蜂窝网络完全不同。继续折腾端口转发，往往不会立刻改善结果。</p>
+<p>这不是一篇“打开某个开关就能直连”的教程。我把问题拆成三个互相独立的环节：<strong>控制面能否分发正确的 Peer 信息、候选 UDP Endpoint 能否互相到达、失败时 DERP 是否能可靠兜底</strong>。只有先分层，才不会把一个连接失败归罪于整个家庭网络。</p>
+<figure><img src="/assets/illustrations/tailscale-planes.svg" loading="lazy" alt="控制面、Endpoint 协商、UDP 直连与 DERP 中继之间的关系示意"><figcaption>图 1｜控制服务器用于登记和协调；真正的数据流优先尝试端到端 UDP，不通时通过中继。概念图，不是任何真实网络的拓扑。</figcaption></figure>
+<h2 id="plane">1. 控制面不等于数据面</h2>
+<p>Tailscale 基于 WireGuard 建立加密连接，但 Tailscale 的价值远不止“自动配置 WireGuard”。它负责节点发现、密钥分发、网络地址协调、穿透 NAT 和在直连失败时提供中继。部署 Headscale 后，替换的是协调/控制服务，而不是自动消除 NAT 和防火墙。</p>
+<table><thead><tr><th>层次</th><th>解决什么问题</th><th>常见的错误判断</th></tr></thead><tbody>
+<tr><td><strong>控制面</strong><br>Headscale</td><td>客户端注册、节点身份、密钥与 Peer/DERP 信息分发</td><td>“登录成功”并不能证明两台节点之间的数据通路可达</td></tr>
+<tr><td><strong>发现与协商</strong><br>STUN / Endpoint</td><td>发现本地或公网候选 <code>IP:port</code>，并让 Peer 知道应往哪里探测</td><td>“发现了公网地址”不代表对端收到并能访问它</td></tr>
+<tr><td><strong>数据面</strong><br>直连 UDP</td><td>节点之间直接发送加密包，通常延迟更低</td><td>端口开放一次，不等于所有路径都会被选择</td></tr>
+<tr><td><strong>兜底传输</strong><br>DERP / Peer relay</td><td>直连失败时转发已加密的流量</td><td>通过 DERP 能访问，不代表直连成功；反过来，中继不可达也会导致整体不可用</td></tr>
+</tbody></table>
+<p>在当前官方文档里，Tailscale 将路径分为 <strong>direct、DERP relay 和 peer relay</strong> 三类。三者的 WireGuard 内容都是端到端加密的；区别主要在路径和性能，而不是是否加密。Peer relay 需要 Tailnet 中存在可用的 relay 设备，不能默认每个 Headscale 网络都有。<a href="https://tailscale.com/docs/reference/connection-types" rel="noopener noreferrer">[1]</a></p>
+<h2 id="flow">2. 一次连接究竟怎样建立</h2>
+<ol>
+<li>客户端连接 Headscale，获取允许访问的 Peer、设备公钥、候选地址以及 DERP Map。</li>
+<li>设备可先利用 DERP 交换连接信息并传送数据，不需要等 UDP 直连协商完成。</li>
+<li>各节点从本机地址、STUN 观测、端口映射等来源收集候选 Endpoint；有多个时会尝试多条路径。</li>
+<li>双方发送 UDP 探测包，寻找可双向收发的路径。成功后选择可用直连；失败则保留中继。</li>
+<li>网络切换、NAT 超时或接口变化后，客户端可能重新选择路径，原本直连的会话也可能回退到中继。</li>
+</ol>
+<p>所以 <code>tailscale ping</code> 刚开始出现 DERP，随后切换为直连，是正常的协商过程；如果连续多次始终只显示 DERP，才说明该连接没有完成直连升级。<a href="https://tailscale.com/docs/reference/connection-types" rel="noopener noreferrer">[1]</a></p>
+<h2 id="symptoms">3. 先记录症状，而不是猜 NAT</h2>
+<p>排障前先画最小通信矩阵，按网络环境和方向分开记录。下面是一个<strong>虚构、匿名化的示例</strong>，不是发布任何真实设备名称或 IP：</p>
+<table><thead><tr><th>测试源</th><th>测试目标</th><th>网络</th><th>结果</th><th>首先说明什么</th></tr></thead><tbody>
+<tr><td>桌面机 A</td><td>NAS B</td><td>家用局域网</td><td>direct</td><td>A 与 B 至少有一条双向 UDP 路径</td></tr>
+<tr><td>手机 C</td><td>NAS B</td><td>蜂窝数据</td><td>DERP</td><td>移动路径与桌面机路径不等价</td></tr>
+<tr><td>手机 C</td><td>桌面机 A</td><td>家庭 Wi‑Fi</td><td>不可用</td><td>可能存在节点路由、候选地址或中继可达性问题</td></tr>
+</tbody></table>
+<p>这三行不能推出“运营商限制 Tailscale”，更不能推出“某个客户端天生不支持直连”。同一个 Peer 对在不同网络上可能经历不同 NAT、DNS、路由和防火墙行为。真正有价值的下一步是：<strong>找出究竟在哪一层，观测到的状态第一次与预期不一致</strong>。</p>
+<h2 id="matrix">4. 最小诊断矩阵：五个检查就够开始</h2>
+<p>以下命令针对安装了官方 Tailscale CLI 的桌面机或服务器。嵌入式 Tailscale 客户端未必暴露这些命令；在这种情况下，应在具备 CLI 的对端执行，并结合移动端应用日志，不要把缺少 CLI 当成网络故障。</p>
+<pre><code># ① 查看 Peer 当前实际采用 direct / relay / peer-relay
+tailscale status
+
+# ② 向目标 Peer 发起 Tailscale 层连通性探测
+tailscale ping &lt;peer-name-or-100.x-address&gt;
+
+# ③ 检查本机的 UDP、NAT 映射和 DERP 连通性
+tailscale netcheck
+
+# ④ 查看当前控制器下发的 DERP Map（可用时）
+tailscale debug derp-map
+
+# ⑤ 检查指定 DERP Region（region code 以实际 Map 为准）
+tailscale debug derp &lt;region-code&gt;</code></pre>
+<p>重点读这些字段：</p>
+<table><thead><tr><th>观察项</th><th>能说明什么</th><th>不能说明什么</th></tr></thead><tbody>
+<tr><td><code>status: direct</code></td><td>当前 Peer 正在走直连</td><td>不能说明换网络之后仍然直连</td></tr>
+<tr><td><code>status: relay</code></td><td>当前使用 DERP 路径</td><td>无法单独确定是 NAT、Endpoint 还是防火墙问题</td></tr>
+<tr><td><code>UDP: true</code></td><td>本机能够向 STUN/相关探测目标发送 UDP 并收到响应</td><td>不代表任意对端 UDP 都可达</td></tr>
+<tr><td><code>MappingVariesByDestIP: true</code></td><td>提示映射随目标变化，穿透通常更困难</td><td>不等于绝无直连可能</td></tr>
+<tr><td><code>HairPinning</code></td><td>提示本机网络是否可能经公网映射地址回到本 LAN</td><td>不代表所有路由器、端口和域名都一致</td></tr>
+</tbody></table>
+<p><code>tailscale netcheck</code> 的 STUN 检测可能临时使用与实际 WireGuard/Tailscale 数据监听不同的 UDP 端口，因此看到某个<strong>临时探测端口占用</strong>，不能直接认定主服务的 UDP 监听端口没有开放。应分别测试<strong>真实数据监听端口</strong>与 STUN 探测的结论。<a href="https://tailscale.com/docs/reference/tailscale-cli" rel="noopener noreferrer">[2]</a></p>
+<h2 id="endpoints">5. Endpoint 必须经过四个层次，不能混为一谈</h2>
+<figure><img src="/assets/illustrations/tailscale-debug-flow.svg" loading="lazy" alt="从 Endpoint 发现、发布、分发到端对端 UDP 探测的诊断流程"><figcaption>图 2｜不要把本地日志里出现 Endpoint 等同于 Peer 已经收到。各阶段需要独立证据。</figcaption></figure>
+<p>排查某个设备一直没有直连时，最容易犯的错误就是看到一条 <code>endpoint</code> 日志，就认为 Headscale 和 Peer 协商全都正确了。实际上至少要分成：</p>
+<ol>
+<li><strong>发现（discover）：</strong>客户端从网卡、STUN 等方式得到一个或多个候选地址。</li>
+<li><strong>发布（publish）：</strong>客户端将候选地址及状态按其协议流程交给控制面。一个地址“被发现”并不能证明这一步完成。</li>
+<li><strong>分发（distribute）：</strong>控制面在对端的 Peer/Netmap 信息中提供可用候选地址。仅证明本端向控制面提交还不够。</li>
+<li><strong>探测与选择（probe/select）：</strong>两端实际通过候选 UDP 地址交换探测包，才能知道路径是否可用。</li>
+</ol>
+<p>如果某端日志显示“发现了 IPv4/IPv6 映射”，而另一端仍看不到可用 Endpoint，下一步更适合核对节点身份、Peer 关联、控制面分发和客户端实现差异，而不是立刻增加端口转发。反过来，若两端都持有候选地址，但 UDP 包无法到达，才优先看 NAT、ACL/防火墙和路由。</p>
+<p><strong>注意：</strong>不同版本的 Tailscale、Headscale 和第三方客户端可能采用不同的日志字段或序列化结构。上面是<strong>概念性的诊断分层</strong>，不是把某条私有日志字段当成通用协议标准。</p>
+<h2 id="dualurl">6. 为什么“Headscale 控制面走内网”并不能自动解决问题</h2>
+<p>家庭自托管经常同时配置两个入口：一个公网 FQDN 给外网客户端，另一个 LAN 名称或内网反代给家庭设备。这只能保证<strong>某条控制面 URL</strong> 在对应网络内可以访问，不能自动改变数据面。</p>
+<p>关键区别如下：</p>
+<ul><li><strong>Headscale 控制 URL：</strong>客户端到控制服务器，用于注册和交换配置。</li>
+<li><strong>DERP Map：</strong>由控制面提供给客户端，包含实际中继服务器的地址、端口、Region 等信息。内网控制 URL 不会自动重写 DERP 地址。</li>
+<li><strong>Peer Endpoint：</strong>双方可尝试的 LAN/WAN/IPv6 候选 UDP 地址。它们的可达性由各自网络决定。</li></ul>
+<p>如果一个客户端在家里通过 LAN 控制地址正常注册，但它收到的 DERP 地址仍指向家庭公网域名，而路由器又不能正确完成 NAT hairpin（从 LAN 访问自己的公网映射地址），就有可能出现：<strong>控制面看起来正常，直连没建立，DERP 又不可用</strong>。这是需要通过 DERP 连接测试和流量抓包验证的<strong>假设</strong>，而不是遇到故障时可以直接宣布的结论。</p>
+<p>要解决这个场景，常见思路是使用受控的 split DNS，让内部设备将同一服务域名解析到适当的内网入口，同时确认这个入口真正承载控制服务与相应的 DERP 服务。若 DERP 与控制服务使用不同端口、域名、反代和 TLS 配置，必须分别核对；只改控制面的 DNS A 记录往往不够。</p>
+<p>另一处陷阱是：<strong>改变 Stash 的 <code>control-url</code> 可能引入独立节点身份，需要重新认证</strong>，不能把“同一个物理手机”自动视为“在两个入口都共享同一注册节点”。这取决于客户端保存身份的方式与 Headscale 的节点登记状态。<a href="https://stash.wiki/proxy-protocols/proxy-types" rel="noopener noreferrer">[3]</a></p>
+<h2 id="stash">7. Stash 内置 Tailscale 还要检查什么</h2>
+<p>Stash 支持将内置 Tailscale 作为 <code>type: tailscale</code> 代理使用，但它与系统级 Tailscale 客户端不是完全相同的网络入口：代理规则、隧道路由、Peer 选择与具体的 Stash 版本都可能影响“某条业务请求到底走了哪里”。不能因为普通网页能访问，就默认所有去往 Tailnet 的流量都穿过了预期节点。</p>
+<pre><code># 仅用于说明字段含义；以下域名为示例，不是可直接运行的配置
+proxies:
+  - name: lab-tailnet
+    type: tailscale
+    hostname: mobile-lab
+    control-url: https://headscale.example.com
+    auto-route-disabled: true</code></pre>
+<p><code>auto-route-disabled: true</code> 的含义是关闭 Stash 对当前 Tailnet 地址和 MagicDNS 后缀的<strong>自动路由</strong>；若采用这个设置，业务流量必须由你自己的规则明确导向该 Tailscale 代理。它<strong>不会</strong>通过自身修复 UDP 打洞、Headscale 节点注册或 DERP 可达性问题。没有明确的自定义路由需求时，不应盲目关闭自动路由。<a href="https://stash.wiki/proxy-protocols/proxy-types" rel="noopener noreferrer">[3]</a></p>
+<p>推荐把检查拆成两组：一组关注“Stash 内的节点是否已注册、控制 URL 是否正确、Peer 是否更新”；另一组关注“发起的连接命中了哪个代理规则、是经 Tailnet 目标地址还是经局域网目标地址”。<strong>先确认业务路由真正经过了 Tailscale，再讨论它为什么没有直连。</strong></p>
+<h2 id="procedure">8. 一个可以执行的排障顺序</h2>
+<ol>
+<li><strong>固定实验矩阵：</strong>保留一对已知能 direct 的主机作基线；把有问题的移动端分别放在 Wi‑Fi 和蜂窝网络测试。每次只改变一个条件。</li>
+<li><strong>验证身份与控制面：</strong>核对 Headscale 中的节点登记、预期 Tailnet、客户端连接的控制 URL；如果使用两个不同 URL，确认节点身份没有混淆。</li>
+<li><strong>验证 DERP：</strong>从每个可能的网络出口检查 DERP Map 和对应 Region 的可达性；自建 DERP 还需单独检查服务监听、TLS/反代和 STUN UDP 3478。不能在未经验证时只保留唯一一个自建 DERP。</li>
+<li><strong>验证 Peer 信息：</strong>检查问题端是否发现候选 Endpoint，以及正常对端是否收到了这些地址；若缺失，先调查控制面分发和客户端兼容性。</li>
+<li><strong>验证 UDP 数据路径：</strong>在允许的网络下抓包或做端口测试，确认目标 UDP 包是否抵达正确主机及监听端口。检查多级 NAT、不同出口和 NAT hairpin 行为。</li>
+<li><strong>验证业务流量归属：</strong>在 Stash 等第三方客户端中核对代理节点、规则和目标地址，防止把普通代理访问成功误判为 Tailscale 数据面成功。</li>
+<li><strong>最后再改配置：</strong>一次修改一个选项，保留改前/改后的 <code>status</code>、<code>ping</code>、<code>netcheck</code>、DERP 测试和流量证据。</li>
+</ol>
+<p>如果只想得到一个最快的分叉判断，可以按顺序问：<strong>是否已注册？DERP 是否可达？对端是否拿到 Endpoint？UDP 是否实际到达？业务流量有没有走对代理？</strong> 哪一步首先失败，就从那一步向下排。</p>
+<h2 id="examples">9. 三个经常被误判的场景</h2>
+<h3 id="examples-a">场景 A：两台常开设备直连，手机始终 DERP</h3>
+<p>这只能证明常开设备之间存在有效直连路径。手机还会受到蜂窝 NAT、iOS 后台策略、客户端实现和控制面信息的影响。若手机已经发现候选地址但另一端没有对应信息，建议先核对 Endpoint 分发；如果双方信息齐全再查手机网络的 UDP 可达性。</p>
+<h3 id="examples-b">场景 B：公网能访问控制面，家庭 Wi‑Fi 反而不行</h3>
+<p>应分开测试控制地址、DERP 地址及其实际 TCP/UDP 端口。公网访问成功只验证了某个外部路径；家庭 LAN 内访问公网域名，可能碰到 DNS 分流或 NAT hairpin 的差异。内网 DNS 解析正确，也不能证明跨子网路由、DERP 或 Peer 数据面就会正常。</p>
+<h3 id="examples-c">场景 C：UDP 端口确认开放，但某个 Peer 依旧无法 direct</h3>
+<p>某个监听端口在一次外部测试中收到 UDP，说明这一条路径上的入站能力，但它不能证明所有源地址、所有出口或所有客户端的 Endpoint 协商都成功。若家里还有多条 WAN、不同网段或策略路由，应确认<strong>出站路径与回包路径</strong>是否一致，并用抓包验证实际 WireGuard/Disco 探测包，而不只看测试工具给出的“端口开放”。</p>
+<h2 id="security">10. 公开排障文章应该怎样避免泄露网络信息</h2>
+<p>发技术笔记前，把真实控制域名、动态 DNS、家庭公网 IP、LAN 子网、设备名称、Key/Token、认证链接、Tailnet 身份和日志中的 Endpoint 全部替换为示例值。截图也应检查二维码、浏览器 URL、序列号和可识别的设备标签。本文只包含<strong>通用命令、虚构拓扑和公开文档</strong>，不包含原始配置或运行日志。</p>
+<p>对于还未确认的根因，要写“可能”“待测”和“下一步证伪”，而不是把猜测包装成已解决的故障。一个好用的排障记录应该能让读者复用方法，却无法从文章还原作者的私有网络。</p>
+<h2 id="references">公开资料</h2>
+<ul class="references">
+<li><a href="https://tailscale.com/docs/reference/connection-types" rel="noopener noreferrer">[1] Tailscale Docs — Connection types</a>：direct、DERP、peer relay 与升级流程。</li>
+<li><a href="https://tailscale.com/docs/reference/tailscale-cli" rel="noopener noreferrer">[2] Tailscale Docs — CLI</a>：<code>status</code>、<code>ping</code>、<code>netcheck</code> 的使用。</li>
+<li><a href="https://stash.wiki/proxy-protocols/proxy-types" rel="noopener noreferrer">[3] Stash 文档 — Tailscale 代理类型</a>：<code>control-url</code>、认证和 <code>auto-route-disabled</code>。</li>
+<li><a href="https://headscale.net/stable/ref/derp/" rel="noopener noreferrer">[4] Headscale Docs — DERP</a>：内置 DERP、默认 Map、STUN 端口及诊断命令。</li>
+<li><a href="https://tailscale.com/blog/how-nat-traversal-works" rel="noopener noreferrer">[5] Tailscale — How NAT traversal works</a>：UDP 打洞、NAT 映射、候选路径和中继兜底的原理。</li>
+<li><a href="https://tailscale.com/docs/reference/device-connectivity" rel="noopener noreferrer">[6] Tailscale Docs — Device connectivity</a>：NAT 类型与 <code>MappingVariesByDestIP</code>。</li>
+</ul>
+<div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-10-30</span></div></article></div></main><footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>原理、实现与验证，尽量放在同一篇文章里</span></footer><script src="/assets/site.js" defer></script></body></html>
