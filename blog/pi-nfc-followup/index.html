@@ -1,31 +1,34 @@
-<!doctype html><html lang="zh-CN"><head><meta name="description" content="PN532 硬件实验的可复现排障方法：供电、SPI/I2C/UART 接口、主机协议、射频环境和安全记录。"><title>PN532 实验排障：从总线到射频 · codie lab</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script><link rel="canonical" href="https://blog.codie.uk/blog/pi-nfc-followup/"></head><body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a><header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/">首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/">关于</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
-<main id="main"><header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> 硬件实验 · 2026-10-30</p><h1>PN532 实验排障：从总线到射频<span class="accent">.</span></h1><p class="lead">把模块接通只是开始。按供电、接口、协议、射频和软件恢复分层排查，才能把偶然成功变成可重复的硬件实验。</p></header><figure class="article-banner"><img src="/assets/illustrations/pn532-debug.svg" alt="PN532 主机通信与射频排障层次"><figcaption>ENGINEERING DIAGRAM · 原创技术示意图，不代表临床影像或实验结果</figcaption></figure><div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#sec-1">确认接口选择</a><a href="#sec-2">五层故障定位</a><a href="#sec-3">实验记录</a><a href="#sec-4">一次只改变一个变量</a><a href="#sec-5">安全边界与资料</a></aside><article class="prose">
-<p>2017 年那篇 PN532 记录，重点是“把模块接起来并读到响应”。今天回头看，我更想补上实验记录里经常缺失的一半：当它不工作时，如何知道问题在供电、接口选择、主机总线、协议时序，还是射频耦合？</p>
-<p>这篇不再重复读卡或复制卡片的操作步骤，而是把 PN532 当成一个嵌入式外设，整理一套适用于自有测试模块和测试卡的排障方法。对 NFC 实验来说，能稳定解释失败，比偶然成功一次更有价值。</p>
-<h2 id="sec-1">先确认你手里的模块到底选了哪种接口</h2>
-<figure><img src="/assets/illustrations/pn532-debug.svg" loading="lazy" alt="树莓派主机、PN532模块、测试卡和分层排障流程图"><figcaption>图 1｜主机总线、模块接口、协议响应和射频耦合分层排查。</figcaption></figure>
-<p>PN532 芯片支持 SPI、I²C 和 HSU（高速 UART）主机接口，但三者是互斥选择：芯片在上电时根据接口配置脚选择当前链路。开发板通常把配置脚引到跳帽或拨码开关上，但不同厂商的板子丝印、默认状态和引脚布局可能不同。</p>
-<p>因此，不要只看网上某张接线图就认定自己的板子处于 SPI 或 I²C 模式。先找到对应模块的原理图或用户手册，再核对跳帽状态、主机接线和软件驱动是否一致。NXP 的 PN532 User Manual 明确说明了 SPI、I²C、HSU 三种接口以及上电时的接口选择机制。</p>
-<h2 id="sec-2">把故障定位拆成五层</h2>
-<h3 id="sec-2a">1. 供电与复位</h3>
-<p>先检查模块供电是否符合具体 breakout 的规格，主机与模块是否共地，复位脚是否被错误拉低。不要把芯片裸片的电源规格直接套用到所有带稳压器和电平转换的开发板上；应以手头模块的电路和说明为准。若模块有状态灯，它只能提供线索，不能替代电压测量。</p>
-<h3 id="sec-2b">2. 接口选择与总线</h3>
-<p>确认模块的 SPI / I²C / UART 选择与驱动实例一致，再检查主机是否启用了对应总线。I²C 要确认地址扫描结果、上拉和总线是否被其他设备占用；SPI 要核对片选脚和时钟模式；UART 则要核对 TX/RX 交叉、波特率和串口是否已被系统服务占用。不同 breakout 对 IRQ、RSTPD_N 或 H_REQ 的要求也可能不同。</p>
-<h3 id="sec-2c">3. 芯片协议是否真的有响应</h3>
-<p>把“总线能看到设备”和“PN532 协议正常工作”分开。I²C 扫描到地址，不代表命令帧、ACK 和响应帧都正确；SPI 有时钟活动，也不代表片选时序和数据位序正确。建议先运行驱动提供的最小固件版本查询或初始化示例，确认得到完整、可解析的响应，再继续做更复杂的应用。</p>
-<h3 id="sec-2d">4. 射频层与天线环境</h3>
-<p>如果芯片初始化正常，但读卡表现不稳定，再检查射频层：卡片与天线的距离、方向、天线附近的金属、外壳材料、供电噪声和天线调谐都会影响耦合。把卡片贴得更近不一定总能解决问题；先固定位置和方向，再逐项改变条件，才容易定位原因。</p>
-<h3 id="sec-2e">5. 软件状态与恢复</h3>
-<p>记录初始化失败、超时、无目标、协议错误和异常退出等不同状态。若程序超时后直接无限重试，可能把一次短暂故障变成总线长期占用。实验程序应有有限重试、明确的 reset / re-init 路径，以及可观察的错误类别。</p>
-<h2 id="sec-3">建立一份小而够用的实验记录</h2>
-<p>不需要一开始就做复杂平台。每次测试至少记录以下字段：</p>
-<table><thead><tr><th>字段</th><th>记录内容</th><th>目的</th></tr></thead><tbody><tr><td>设备</td><td>主机型号、模块版本、天线版本</td><td>区分硬件差异</td></tr><tr><td>链路</td><td>SPI / I²C / UART、总线参数、复位和 IRQ 配置</td><td>复现主机通信条件</td></tr><tr><td>环境</td><td>供电、线缆长度、卡片距离和方向</td><td>识别电气与射频变量</td></tr><tr><td>结果</td><td>成功、超时、无响应、协议错误、初始化失败</td><td>区分故障阶段</td></tr><tr><td>重复性</td><td>尝试次数、成功次数、重试次数</td><td>量化稳定性而不是凭感觉</td></tr></tbody></table>
-<p>如果要把实验变成一个本地小服务，可以只保存时间、测试编号、模块配置和错误类别。对测试卡使用自定义标签，不必把真实 UID、卡片 dump 或密钥写入日志。这样既能统计成功率，也不会无意间把可识别的卡片数据扩散到备份、截图或公开仓库。</p>
-<h2 id="sec-4">一次只改变一个变量</h2>
-<p>建议按“已知正常的最小配置 → 更换一项条件 → 重复测试 → 保存结果”的顺序进行。例如：</p>
-<ol><li>使用一块已知正常的模块和一张自己持有的测试卡，先验证最小初始化程序。</li><li>固定接口，只改变线缆长度或供电条件，观察成功率是否变化。</li><li>恢复基线，再改变卡片距离和方向，避免同时修改电气和射频变量。</li><li>最后再把初始化和轮询逻辑放进常驻服务，检查超时、复位和退出后的恢复能力。</li></ol>
-<p>每个条件重复多次，比只记录一次“成功”更有意义。若出现偶发失败，应保留失败样本，而不是把它当作噪声删掉。</p>
-<h2 id="sec-5">安全边界和公开资料</h2>
-<p>NFC/RFID 测试只应针对自己持有或获得明确授权的设备与测试卡。不要读取、复制或公开他人的门禁、支付或身份凭据；不要把原始卡片数据、密钥和可关联到个人的标识上传到公开仓库。</p>
-<ul class="references"><li><a href="https://www.nxp.com/docs/en/user-guide/141520.pdf" rel="noopener noreferrer">NXP PN532 User Manual（UM0701）</a>：接口选择、协议和时序说明。</li><li><a href="https://www.nxp.com/docs/en/nxp/data-sheets/PN532_C1.pdf" rel="noopener noreferrer">NXP PN532/C1 数据手册</a>：芯片接口与电气规格。</li><li><a href="https://adafruit-pn532.readthedocs.io/en/latest/api.html" rel="noopener noreferrer">Adafruit PN532 Library 文档</a>：I²C、SPI 和 UART 驱动接口。</li><li><a href="https://adafruit-pn532.readthedocs.io/en/latest/examples.html" rel="noopener noreferrer">Adafruit PN532 Simple Test</a>：最小初始化与测试示例。</li></ul>
-<p>硬件实验的价值不在于堆出更多命令，而在于把每次试验变成可重复、可解释、可安全分享的记录。</p><div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-10-30</span></div></article></div></main><footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>原理、实现与验证，尽量放在同一篇文章里</span></footer><script src="/assets/site.js" defer></script></body></html>
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="上一篇把 PN532 接上树莓派、读到了卡片数据。这篇写几个顺着往下做的方向：先把实验台收拾干净，再谈自动化和安全边界。"><title>树莓派之后：PN532 实验的几个后续玩法 — 博客</title><script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script><style>:root{--bg: #fafaf9;--ink: #171717;--muted: #737373;--line: #e7e5e4;--accent: #2d4a3a;--accent-soft: #eef2ef;--code-bg: #1c1917;--code-ink: #fafaf9}[data-theme=dark]{--bg: #101210;--ink: #e7e5e4;--muted: #a3a3a3;--line: #292524;--accent: #a8c3b0;--accent-soft: #1c2a22;--code-bg: #0c0a09;--code-ink: #e7e5e4}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif;font-size:17px;line-height:1.9;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:4px}.wrap{max-width:720px;margin:0 auto;padding:0 1.5rem 5rem}.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:2rem 0 1.25rem;border-bottom:1px solid var(--line);margin-bottom:3rem}.brand{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;font-size:1.05rem;font-weight:600;letter-spacing:.22em;color:var(--ink)}.brand:hover{text-decoration:none}nav{display:flex;align-items:baseline;gap:1.5rem}nav a{color:var(--muted);font-size:.9rem;letter-spacing:.08em}nav a:hover{color:var(--ink)}.theme-btn{border:none;background:none;color:var(--muted);font-size:.9rem;letter-spacing:.08em;cursor:pointer;padding:0}.theme-btn:hover{color:var(--ink)}h1,h2,h3,h4,h5{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;line-height:1.45;font-weight:600}h1{font-size:2.1rem;margin:0 0 1rem;letter-spacing:.01em}h2{font-size:1.45rem;margin:2.5rem 0 1rem}h3{font-size:1.2rem;margin:2rem 0 .75rem}.hero{margin-bottom:3rem}.hero h1{font-size:2.6rem;margin-bottom:.5rem}.hero p{color:var(--muted);margin:0;font-size:.98rem}.hero-rule{width:2.5rem;height:2px;background:var(--accent);margin-top:1.5rem}.post-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}.post-row{padding:1.6rem 0;border-bottom:1px solid var(--line)}.post-row .post-date{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;color:var(--muted);letter-spacing:.06em;margin-bottom:.4rem}.post-row h3{margin:0 0 .35rem;font-size:1.35rem}.post-row h3 a{color:var(--ink)}.post-row h3 a:hover{color:var(--accent);text-decoration:none}.post-row p{color:var(--muted);margin:0;font-size:.95rem;line-height:1.7}.post-meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;color:var(--muted);letter-spacing:.04em}.tag{color:var(--accent);margin-left:.6rem}.tag:before{content:"· ";color:var(--muted)}article h1{font-size:2.2rem}article>p:first-of-type{font-size:1.05rem}blockquote{margin:1.5rem 0;padding:.25rem 0 .25rem 1.25rem;border-left:2px solid var(--accent);color:var(--muted)}pre{overflow-x:auto;padding:1.1rem 1.25rem;border-radius:6px;background:var(--code-bg);color:var(--code-ink);line-height:1.65;font-size:.88rem}pre code{background:none;padding:0;color:inherit}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--accent-soft);padding:.15em .4em;border-radius:4px}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem;line-height:1.6}th,td{border:none;border-bottom:1px solid var(--line);padding:.55rem .75rem .55rem 0;text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:500;letter-spacing:.04em}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px;display:block;margin:1.5rem auto}hr{border:none;border-top:1px solid var(--line);margin:2.5rem 0}footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;letter-spacing:.12em}.back{display:inline-block;margin-top:2rem;font-size:.95rem}@media(max-width:600px){body{font-size:16px}.hero h1,article h1{font-size:1.7rem}.topbar{flex-direction:column;gap:.75rem}}
+</style></head> <body> <div class="wrap"> <header class="topbar"> <a class="brand" href="/">博客</a> <nav> <a href="/">首页</a> <a href="/blog/">博文</a> <a href="/terms/">术语</a> <button class="theme-btn" type="button" onclick="(function(){var d=document.documentElement;var t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('theme',t)}catch(e){}})()">主题</button> </nav> </header> <main>  <article> <h1>树莓派之后：PN532 实验的几个后续玩法</h1> <p class="post-meta"> 2026-10-30  · RaspberryPi </p> <p>上一篇把 PN532 接上树莓派，读到了 Mifare 卡的数据，实验本身就算是通了。但“通了”和“好用”之间，还差几步。这篇写几个顺着往下做的方向，不展开具体命令，只讲思路和边界。</p>
+<h2 id="先把实验台收拾干净">先把实验台收拾干净</h2>
+<p>很多树莓派实验烂尾，不是因为技术难，而是实验台太乱。建议先做三件小事：</p>
+<ol>
+<li><strong>接线拍照存档。</strong> 每次改接线前拍一张，线一多，回忆就不可靠。</li>
+<li><strong>把读卡脚本和数据分开。</strong> 脚本放一处，读出来的 dump 放另一处，并且注明是哪张卡、什么时候读的。dump 文件本身就是敏感数据，别顺手传到公开地方。</li>
+<li><strong>给卡片做标记。</strong> 实验卡和日常用的门禁卡、饭卡要物理区分开，别在实验里误刷了正在用的卡。</li>
+</ol>
+<h2 id="三个值得做的后续">三个值得做的后续</h2>
+<h3 id="1-做一个固定读卡座">1. 做一个固定读卡座</h3>
+<p>把 PN532 模块和树莓派固定在一个小盒子里，只留一个放卡的位置。好处是读卡成功率稳定，复现问题时不用先怀疑是不是手抖。读卡距离、角度这些变量一旦固定，实验结果才可比。</p>
+<h3 id="2-把读卡变成一个小服务">2. 把读卡变成一个小服务</h3>
+<p>不要每次都手动跑脚本。让树莓派开机就启动一个简单的读卡服务，刷卡后把结果写到本地日志，或者通过局域网推送一条通知。这样实验就从“动手做一次”变成了“随时能用”，也更容易发现偶发问题。</p>
+<h3 id="3-测一测边界而不是只测成功">3. 测一测边界，而不是只测成功</h3>
+<p>只测“能读出来”是不够的。值得顺手测的边界包括：</p>
+<ul>
+<li>不同距离下的成功率</li>
+<li>连续刷卡会不会丢数据</li>
+<li>换一张不同容量的卡，流程还通不通</li>
+</ul>
+<p>边界测清楚了，这个实验才算真的理解了，而不是只跑通了一个 demo。</p>
+<h2 id="安全边界要先说清楚">安全边界要先说清楚</h2>
+<p>RFID 实验有一个必须前置的原则：<strong>只用自己的实验卡做实验。</strong></p>
+<p>不要拿别人的门禁卡、饭卡做测试，不要复制不属于自己的卡片数据，也不要把读出来的数据公开分享。技术本身是中性的，但实验对象的归属决定了实验是否越界。上一篇讲的是技术实现，这篇补上这一条，是因为越往后做，越容易顺手越界。</p>
+<p>实验的乐趣在于“原来是这样工作的”，而不是“原来还能这样用”。守住这条线，后续玩法才玩得长久。</p> </article> <p class="back"><a href="/">← 返回首页</a></p>  </main> <footer> <p>博客</p> </footer> </div> </body></html>

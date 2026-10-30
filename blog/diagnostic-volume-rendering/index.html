@@ -1,52 +1,47 @@
-<!doctype html><html lang="zh-CN"><head><meta name="description" content="从体素几何、射线积分、预积分分类到梯度光照，解释体渲染图像的生成链路与可复现验证方法。"><title>体渲染的可信度：从体素采样到像素合成 · codie lab</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script><link rel="canonical" href="https://blog.codie.uk/blog/diagnostic-volume-rendering/"></head><body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a><header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/" >首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/" >关于</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
-<main id="main"><header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> 图形渲染 · 2026-10-30</p><h1>体渲染的可信度：从体素采样到像素合成<span class="accent">.</span></h1><p class="lead">一张漂亮的体渲染图并不是原始数据本身。理解几何映射、插值、传递函数和射线积分，才能知道画面表达了什么，也知道它可能在哪里失真。</p></header><figure class="article-banner"><img src="/assets/illustrations/volume-pipeline.svg" alt="体数据到屏幕像素的计算流程"><figcaption>ENGINEERING DIAGRAM · 原创技术示意图，不代表临床影像或实验结果</figcaption></figure><div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#sec-1">一张图经过哪些环节</a><a href="#sec-2">射线积分</a><a href="#sec-3a">采样步长与透明度</a><a href="#sec-4">插值和传递函数</a><a href="#sec-5">梯度、法线与光照</a><a href="#sec-6">失效模式</a><a href="#sec-7">验证记录</a><a href="#sec-8">结语</a><a href="#sec-9">公开参考资料</a></aside><article class="prose">
-<p>体渲染最容易被评价的是画面：有没有层次、阴影够不够柔和、血管是否清楚。但工程上更值得追问的是：这张二维图像究竟由哪些数据和参数生成？改变采样步长、传递函数或相机后，哪些变化是预期的，哪些变化说明表示已经不稳定？</p>
-<p>直接体绘制（Direct Volume Rendering, DVR）不是把体素简单“画出来”，而是沿视线对连续场进行采样、分类和积分。最终像素是整条射线上许多样本共同作用的结果。因此，体渲染图像适合帮助理解空间关系，却不能自动替代原始切片、定量测量或任务级验证。</p>
-<h2 id="sec-1">一张图经过了哪些环节</h2>
-<figure><img src="/assets/illustrations/volume-pipeline.svg" loading="lazy" alt="体数据经过几何映射、采样、传递函数分类、射线积分和显示的流程图"><figcaption>图 1｜从体素到像素的简化数据流。每个阶段都可能引入近似或改变可见性。</figcaption></figure>
-<p>一条典型的 DVR 管线可以拆成六步：</p>
-<ol><li><strong>数据与几何：</strong>读取体素值，同时保留原点、方向矩阵、spacing、层厚和强度单位。数组下标不是物理坐标。</li><li><strong>空间变换：</strong>把世界坐标中的射线采样位置变换到体数据坐标系，处理非等距采样和斜切方向。</li><li><strong>重采样：</strong>在射线位置附近读取离散体素，常见方法是三线性插值；边界外如何处理也会影响结果。</li><li><strong>分类：</strong>通过传递函数把强度及梯度等属性映射为颜色和光学属性，通常包括不透明度或消光系数。</li><li><strong>积分与光照：</strong>沿视线累积颜色、透射率和光照贡献；不同渲染器可能采用不同的近似。</li><li><strong>显示变换：</strong>进行色调映射、窗口显示、颜色空间转换和最终屏幕合成。</li></ol>
-<p>几何变换尤其容易被低估。若体数据的索引坐标为 <code>i</code>，物理坐标通常应由一个包含方向、间距和原点的仿射变换得到，而不只是分别乘三个 spacing。对于方向矩阵为 <code>D</code>、间距矩阵为 <code>S</code>、原点为 <code>o</code> 的数据，可写成：</p>
-<pre class="equation"><code>x_world = o + D · S · x_index
-x_index = (D · S)⁻¹ · (x_world - o)</code></pre>
-<p>如果把数组轴顺序、病人坐标方向或体素中心/边界约定弄错，画面可能仍然“看起来合理”，但空间定位已经不可靠。</p>
-<h2 id="sec-2">射线积分：像素不是某一个体素</h2>
-<p>在 emission–absorption 模型中，沿射线位置 <code>r(t)</code> 的标量值经分类后得到颜色 <code>c</code> 和消光系数 <code>σ</code>。透射率表示光线走到当前位置时还剩多少未被吸收的能量：</p>
-<pre class="equation"><code>T(t) = exp(-∫₀ᵗ σ(f(r(s))) ds)
+<!DOCTYPE html><html lang="zh-CN"> <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="体渲染做得好不好看是其次，先问一句：画面里的每一个体素，能不能追溯回原始数据？追溯不回去的漂亮，都是预览，不是诊断。"><title>诊断级体渲染：原始数据才是底线 — 博客</title><script>
+      (function () {
+        try {
+          var t = localStorage.getItem('theme');
+          if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          document.documentElement.setAttribute('data-theme', t);
+        } catch (e) {}
+      })();
+    </script><style>:root{--bg: #fafaf9;--ink: #171717;--muted: #737373;--line: #e7e5e4;--accent: #2d4a3a;--accent-soft: #eef2ef;--code-bg: #1c1917;--code-ink: #fafaf9}[data-theme=dark]{--bg: #101210;--ink: #e7e5e4;--muted: #a3a3a3;--line: #292524;--accent: #a8c3b0;--accent-soft: #1c2a22;--code-bg: #0c0a09;--code-ink: #e7e5e4}*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,PingFang SC,Hiragino Sans GB,Microsoft YaHei,sans-serif;font-size:17px;line-height:1.9;color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline;text-underline-offset:4px}.wrap{max-width:720px;margin:0 auto;padding:0 1.5rem 5rem}.topbar{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;padding:2rem 0 1.25rem;border-bottom:1px solid var(--line);margin-bottom:3rem}.brand{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;font-size:1.05rem;font-weight:600;letter-spacing:.22em;color:var(--ink)}.brand:hover{text-decoration:none}nav{display:flex;align-items:baseline;gap:1.5rem}nav a{color:var(--muted);font-size:.9rem;letter-spacing:.08em}nav a:hover{color:var(--ink)}.theme-btn{border:none;background:none;color:var(--muted);font-size:.9rem;letter-spacing:.08em;cursor:pointer;padding:0}.theme-btn:hover{color:var(--ink)}h1,h2,h3,h4,h5{font-family:Songti SC,STSong,"Noto Serif SC",Georgia,serif;line-height:1.45;font-weight:600}h1{font-size:2.1rem;margin:0 0 1rem;letter-spacing:.01em}h2{font-size:1.45rem;margin:2.5rem 0 1rem}h3{font-size:1.2rem;margin:2rem 0 .75rem}.hero{margin-bottom:3rem}.hero h1{font-size:2.6rem;margin-bottom:.5rem}.hero p{color:var(--muted);margin:0;font-size:.98rem}.hero-rule{width:2.5rem;height:2px;background:var(--accent);margin-top:1.5rem}.post-list{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}.post-row{padding:1.6rem 0;border-bottom:1px solid var(--line)}.post-row .post-date{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;color:var(--muted);letter-spacing:.06em;margin-bottom:.4rem}.post-row h3{margin:0 0 .35rem;font-size:1.35rem}.post-row h3 a{color:var(--ink)}.post-row h3 a:hover{color:var(--accent);text-decoration:none}.post-row p{color:var(--muted);margin:0;font-size:.95rem;line-height:1.7}.post-meta{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85rem;color:var(--muted);letter-spacing:.04em}.tag{color:var(--accent);margin-left:.6rem}.tag:before{content:"· ";color:var(--muted)}article h1{font-size:2.2rem}article>p:first-of-type{font-size:1.05rem}blockquote{margin:1.5rem 0;padding:.25rem 0 .25rem 1.25rem;border-left:2px solid var(--accent);color:var(--muted)}pre{overflow-x:auto;padding:1.1rem 1.25rem;border-radius:6px;background:var(--code-bg);color:var(--code-ink);line-height:1.65;font-size:.88rem}pre code{background:none;padding:0;color:inherit}code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.88em;background:var(--accent-soft);padding:.15em .4em;border-radius:4px}table{border-collapse:collapse;width:100%;display:block;overflow-x:auto;font-size:.92rem;line-height:1.6}th,td{border:none;border-bottom:1px solid var(--line);padding:.55rem .75rem .55rem 0;text-align:left;white-space:nowrap}th{color:var(--muted);font-weight:500;letter-spacing:.04em}img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px;display:block;margin:1.5rem auto}hr{border:none;border-top:1px solid var(--line);margin:2.5rem 0}footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);color:var(--muted);font-size:.85rem;letter-spacing:.12em}.back{display:inline-block;margin-top:2rem;font-size:.95rem}@media(max-width:600px){body{font-size:16px}.hero h1,article h1{font-size:1.7rem}.topbar{flex-direction:column;gap:.75rem}}
+</style></head> <body> <div class="wrap"> <header class="topbar"> <a class="brand" href="/">博客</a> <nav> <a href="/">首页</a> <a href="/blog/">博文</a> <a href="/terms/">术语</a> <button class="theme-btn" type="button" onclick="(function(){var d=document.documentElement;var t=d.getAttribute('data-theme')==='dark'?'light':'dark';d.setAttribute('data-theme',t);try{localStorage.setItem('theme',t)}catch(e){}})()">主题</button> </nav> </header> <main>  <article> <h1>诊断级体渲染：原始数据才是底线</h1> <p class="post-meta"> 2026-10-30  · 体渲染 </p> <p>体渲染的演示总是很好看。转一圈，光影柔和，结构清晰，观众很容易点头。但在诊断场景里，好不好看是最不重要的一条标准。真正要问的只有一句：<strong>画面里的每一个体素，能不能追溯回原始数据？</strong></p>
+<h2 id="预览层和诊断层要分开">预览层和诊断层要分开</h2>
+<p>一个实用的分法是把渲染分成两层：</p>
 
-C(r) = ∫₀ᴰ T(t) · σ(f(r(t))) · c(f(r(t))) dt
-       + T(D) · C_background</code></pre>
-<p>实际 GPU ray marching 会把连续积分离散成一系列采样段。对第 <code>i</code> 段，若局部消光系数近似为常数，段不透明度可以写成：</p>
-<pre class="equation"><code>αᵢ = 1 - exp(-σᵢ · Δs)
 
-Cᵢ₊₁ = Cᵢ + Tᵢ · αᵢ · cᵢ
-Tᵢ₊₁ = Tᵢ · (1 - αᵢ)</code></pre>
-<p>这里的 <code>Δs</code> 是沿射线的物理采样距离，不应与体素数组下标步长混为一谈。当前样本的颜色贡献会被前面样本留下的透射率 <code>Tᵢ</code> 调制，这也是前向 alpha compositing 的核心。</p>
-<h3 id="sec-3a">采样步长改变时，不透明度也要跟着变</h3>
-<p>一个常见陷阱是：只把 ray step 调大或调小，却仍使用同一份每步 alpha。这样每单位物理长度的累计吸收量就变了，最终图像自然会变亮、变暗或显得更厚。若某个参考步长 <code>Δs₀</code> 下的 alpha 为 <code>α₀</code>，在同一均匀介质假设下，步长改为 <code>Δs</code> 时可按下式修正：</p>
-<pre class="equation"><code>α(Δs) = 1 - (1 - α₀)^(Δs / Δs₀)</code></pre>
-<p>这不是所有渲染实现都能直接套用的万能补丁：若分类、插值或光照在一个采样段内变化很大，常数消光近似本身就不成立。但它说明了一个原则：性能参数不能脱离物理步长和光学模型单独调节。</p>
-<h2 id="sec-4">插值和传递函数通常不交换</h2>
-<p>假设一个采样位置落在八个体素之间，三线性插值先对标量值加权求和。若传递函数是非线性的，通常有：</p>
-<pre class="equation"><code>TF(Σ wᵢ · fᵢ) ≠ Σ wᵢ · TF(fᵢ)</code></pre>
-<p>左边是先插值标量、再查传递函数；右边是先对每个体素分类、再插值颜色与透明度。两种路径的视觉结果可能不同，尤其当 TF 有窄峰、陡峭边缘或多个相邻组织区间时。</p>
-<p>预积分（pre-integrated classification）就是为了解决高频 TF 与较粗采样之间的一部分误差：它不只看采样点的 TF 值，而是根据线段两端的标量值，预先近似积分该段内部的颜色和不透明度贡献。典型实现把端点标量对映射到二维查找表。它能减少尖锐 TF 下的条带和漏采，但并不意味着可以任意降低采样率；表分辨率、标量变化假设、插值方式和梯度计算仍然重要。</p>
-<p>多维传递函数进一步把梯度大小、材料类别或其他属性纳入分类空间。它能帮助分离强度区间重叠的边界，也增加了设计和验证的复杂度：同一 HU 值在不同梯度或组织标签下，可能被映射成完全不同的颜色与透明度。</p>
-<h2 id="sec-5">梯度、法线与光照：增强形态，不等于增加数据</h2>
-<p>很多高质量体渲染会用标量场梯度估计局部法线，再计算漫反射、高光、阴影或环境光遮蔽。若体数据的索引坐标与物理坐标之间存在非单位 spacing 或方向旋转，梯度也必须正确变换。对线性变换矩阵 <code>A</code>，梯度满足：</p>
-<pre class="equation"><code>∇world f = A⁻ᵀ · ∇index f</code></pre>
-<p>直接在数组坐标里算差分、再把结果当成世界空间法线，可能造成方向和尺度错误。尤其在厚层数据、各向异性体素和斜切采样中，spacing-aware gradient 是必要条件。</p>
-<p>还要区分两个概念：梯度和光照可以让边界更容易被看见，但它们不会创造新的原始测量信息。阴影、材质、去噪、锐化或色调映射都可能增强视觉线索，也可能改变局部对比。图像更有层次，不等于结构位置更准确。</p>
-<h2 id="sec-6">最值得检查的四类失效</h2>
-<table><thead><tr><th>失效类型</th><th>典型表现</th><th>优先核查</th></tr></thead><tbody><tr><td>几何错位</td><td>斜切面、左右方向、尺度或层间距异常</td><td>原点、方向矩阵、spacing、轴顺序和坐标约定</td></tr><tr><td>采样不足</td><td>薄结构断裂、细节随视角闪烁、边缘呈阶梯</td><td>物理步长、屏幕像素 footprint、插值和预积分设置</td></tr><tr><td>分类偏差</td><td>组织忽隐忽现，改变 TF 后边界大幅移动</td><td>TF 曲线、梯度维度、强度范围和透明度校正</td></tr><tr><td>光照误导</td><td>阴影看起来像边界，去噪后小结构消失</td><td>关闭光照/后处理，对照原始切片与 MPR</td></tr></tbody></table>
-<p>对于细血管、薄骨皮质、低对比边界等目标，建议把视图拆成三个层次：全局视图检查空间关系，局部 ROI 检查细节，原始切片或 MPR 检查数据依据。只看一张全局截图，往往会把局部失真平均掉。</p>
-<h2 id="sec-7">一份更有用的验证记录</h2>
-<p>验证不是“选一张好看的图”，而是固定变量后主动寻找失败条件。下面这份记录表适合用于比较两个渲染实现或一组参数：</p>
-<table><thead><tr><th>层级</th><th>固定条件</th><th>观察/指标</th><th>不能单独证明什么</th></tr></thead><tbody><tr><td>数据层</td><td>同一体数据、几何元信息、预处理版本</td><td>体素值抽样、spacing、方向和 ROI 坐标一致</td><td>不能证明渲染图像视觉质量</td></tr><tr><td>积分层</td><td>同一 TF、采样步长、插值和背景</td><td>参考积分误差、透明度累计、亮度范围</td><td>不能证明结构任务准确</td></tr><tr><td>结构层</td><td>同一相机、同一裁剪面、同一局部 ROI</td><td>边界偏移、连通性、薄结构保留、局部差异</td><td>不能代替临床任务验证</td></tr><tr><td>稳定性层</td><td>只改变一个变量</td><td>步长减半、视口缩放、TF 微调后的变化趋势</td><td>不能证明所有设备和数据都一致</td></tr></tbody></table>
-<ol><li>先固定数据和几何：同一份源数据、同一 spacing、同一方向矩阵和预处理版本。</li><li>再固定渲染参数：相机、TF、采样步长、插值、梯度、光照、背景和输出色彩空间。</li><li>定义 ROI 后再跑对照：至少包含高对比边界、细小结构、低对比区域和容易产生伪影的位置。</li><li>逐个改变变量：例如先只改采样步长，再只改 TF，避免同时修改多个参数后无法归因。</li><li>保存结果与失败样本：包括参数、版本、差异图和未通过的 ROI，而不是只留最佳截图。</li></ol>
-<blockquote>一个可靠的渲染结论应该能够回答：在哪些数据、视角、TF 和采样条件下成立？换一个条件后，哪里开始失效？</blockquote>
-<h2 id="sec-8">结语：把渲染当作一条可解释的计算链</h2>
-<p>体渲染的质量由数据几何、重采样、分类、积分、梯度和显示共同决定。优化其中某一步，可能改善性能或观感，也可能把误差转移到别处。真正有价值的工程记录，应该让别人知道输入是什么、参数是什么、结果如何复现，以及哪些问题还没有被证明。</p>
-<p>这里讨论的是图形学和可视化层面的工程验证，不构成临床诊断建议，也不意味着体渲染图像可以替代原始医学影像或经验证的测量流程。</p>
-<h2 id="sec-9">公开参考资料</h2>
-<ul class="references"><li><a href="https://graphics.stanford.edu/papers/volume-cga88/" rel="noopener noreferrer">Marc Levoy, Display of Surfaces from Volume Data, IEEE CG&amp;A, 1988</a>：经典体绘制管线、分类、梯度和合成。</li><li><a href="https://people.cs.uchicago.edu/~glk/pubs/pdf/Kniss-MultidimensionalTransferFunctions-TVCG-2002.pdf" rel="noopener noreferrer">Kniss, Kindlmann &amp; Hansen, Multidimensional Transfer Functions, 2002</a>：多维 TF 的设计动机。</li><li><a href="https://diglib.eg.org/items/a1d7b759-0e50-46c9-b67d-0de61e946196" rel="noopener noreferrer">Engel, Kraus &amp; Ertl, High-Quality Pre-Integrated Volume Rendering, 2001</a>：预积分分类。</li><li><a href="https://pubmed.ncbi.nlm.nih.gov/19834235/" rel="noopener noreferrer">Knoll et al., Volume ray casting with peak finding and differential sampling, 2009</a>：尖锐 TF 与自适应采样。</li><li><a href="https://onlinelibrary.wiley.com/doi/10.1111/cgf.14333" rel="noopener noreferrer">Gillmann et al., Uncertainty-aware Visualization in Medical Imaging, 2021</a>：医学影像处理与可视化中的不确定性。</li></ul><div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-10-30</span></div></article></div></main><footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>原理、实现与验证，尽量放在同一篇文章里</span></footer><script src="/assets/site.js" defer></script></body></html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<table><thead><tr><th>层</th><th>作用</th><th>允许什么</th></tr></thead><tbody><tr><td>预览层</td><td>快速看结构、讲清楚、做演示</td><td>学习到的重建、插值、平滑、风格化</td></tr><tr><td>诊断层</td><td>下判断、量尺寸、写结论</td><td>只能来自原始数据的直接映射，任何一步都要可复现</td></tr></tbody></table>
+<p>两层可以共存，但不能混用。把预览层的结果当成诊断依据，等于用一张效果图去量病灶大小，尺寸对了是运气，错了是事故。</p>
+<h2 id="三个检查点">三个检查点</h2>
+<p>拿到任何一个体渲染结果，先做三件事，再谈效果：</p>
+<ol>
+<li><strong>窗宽窗位是不是原始值？</strong> 传递函数改得再漂亮，也要能一键回到原始灰度映射，并且知道改了哪一段、改了多少。</li>
+<li><strong>插值有没有造出结构？</strong> 三线性插值会在边界处产生过渡带，看起来像是真实的薄层；高阶插值更平滑，也更会“补”出原本不存在的连续性。薄结构先看原始切片，再看渲染。</li>
+<li><strong>降噪和重建有没有吃掉细节？</strong> 降噪一定会牺牲高频信息，问题只在于牺牲的是噪声还是钙化点、小血管这类小结构。凡是说“去噪后更清晰”的结果，都要同时给出原始数据的对照。</li>
+</ol>
+<h2 id="一个反直觉的结论">一个反直觉的结论</h2>
+<p>渲染质量的上限，往往不是算法，而是数据的采集和标注。体素各向异性、层厚、伪影、配准误差，这些在原始数据里存在的问题，渲染不会修好，只会换一种方式呈现出来。把渲染器调得更“高级”，有时候只是在把数据问题藏得更深。</p>
+<p>所以诊断级体渲染的第一性原理很朴素：<strong>先保真，再谈美。</strong> 保真做不到，剩下的都是演示。</p>
+<blockquote>
+<p>补充一句冷水：任何不能逐体素追溯、不能复现传递函数和插值参数的渲染结果，都不应该出现在诊断结论的依据栏里，哪怕它看起来再像教科书插图。</p>
+</blockquote> </article> <p class="back"><a href="/">← 返回首页</a></p>  </main> <footer> <p>博客</p> </footer> </div> </body></html>
