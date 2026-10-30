@@ -20,3 +20,17 @@
 
 /* Three-up editorial grid when the notebook has three recent articles. */
 @media(min-width:951px){.post-grid{grid-template-columns:repeat(3,minmax(0,1fr))}.post-grid .post-card-figure{height:180px}.post-grid .post-card-body{padding:23px}}
+
+/* Mobile navigation: four links plus theme toggle must not overflow the viewport. */
+@media(max-width:680px){
+ .topbar{height:auto;min-height:66px;padding:12px 0;flex-wrap:wrap;row-gap:10px}
+ .topbar>.brand{flex:0 0 100%;min-width:0}
+ .topbar>.mainnav{width:100%;display:flex;align-items:center;justify-content:space-between;gap:6px;min-width:0}
+ .mainnav a{font-size:13px;white-space:nowrap}
+ .mainnav .theme-button{flex:0 0 32px}
+ .terms-panel{width:100%;min-width:0;max-width:640px}
+ .terms-panel input{max-width:100%;min-width:0}
+ .terms-panel #term-out{overflow-wrap:anywhere;word-break:break-word}
+ .terms-turnstile{max-width:100%;overflow:hidden}
+}
+@media(max-width:360px){.mainnav a{font-size:12px}.topbar>.mainnav{gap:4px}}
