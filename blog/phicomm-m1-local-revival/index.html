@@ -64,8 +64,13 @@ M1 → 114.114.114.114:53  aircat.phicomm.com</code></pre>
 <p>后来验证一项控制，会依次看三层证据：<strong>HA 的实体、日志和 Logbook</strong>；<strong>网络抓包确认命令确实发出</strong>；最后直接<strong>观察实体屏幕有没有变化</strong>。HomeKit 还要额外确认 Bridge 加载正常、实体被实际暴露，以及 Apple 家庭中的操作能够在 HA Logbook 中找到来源。只把实体写进 HomeKit 包含列表，并不能算接入成功。</p>
 <p>这套方案终究不是产品级接口。明文 TCP 没有认证和加密，只应放在可信局域网；本地 HTTPS 激活应答占用 443 端口，不应暴露公网；定向 DNS/ARP 接管需要网络权限和停止后的恢复措施，能通过路由器的静态 DNS 解决时，应优先使用更简单的方式。有时旧 TCP 还显示在线，设备却已不再上报，这种“假在线”仍需要结合最近收到的有效数据帧判断，而不能只看连接数或某个传感器的 <code>last_updated</code>。不同固件、容器网络和端口条件也可能需要重新适配。</p>
 <p>至于重命名、分享、账号绑定或解绑，那是原厂云上的账户业务，不是这台空气检测仪必须具备的本地能力。我们没必要为了看起来“完整”，把已经消失的云平台再造一遍。</p>
-<h2 id="alternatives">七、换一种方式，能不能更省心？</h2>
-<p>如果不想长期维护原厂协议的本地替身，公开社区还有其他思路：把设备放入具备明确 DNS 策略的独立网络，或研究替代固件。PHICOMM COMMUNITY 的资料介绍了部分原厂固件 OTA 迁移路径，以及串口、J-Link 等恢复方法；zM1 也有公开项目资料。但具体是否适用于手上的设备，仍然取决于固件版本和刷写风险，不能简单说“只能拆机刷机”。</p>
+<h2 id="alternatives">七、另一条路：不拆机，也可以换一套固件</h2>
+<p>写到这里，我以为 M1 的出路无非两种：继续陪着原厂协议折腾，或者拆开设备刷机。后来看到 <a href="https://phicomm-io.github.io/guides/m1-no-disassembly.html" rel="noopener noreferrer">PHICOMM COMMUNITY 的《M1 原厂配网与免拆安装》</a>，才发现还有一条挺有意思的路：<strong>不拆机，也能通过原厂留下的 OTA 能力迁移到社区固件。</strong></p>
+<p>这篇社区教程把事情分成了两步。首先让原厂 M1 连上 Wi-Fi：部分固件可以在机身进入配网模式后，连接 <code>EasyLink_XXXXXX</code> 热点，经设备自己的 HTTP <code>8000</code> 接口写入无线配置；另一条经过验证的免 App 路径，是使用支持 monitor 模式与帧注入的 Linux 无线网卡发送 EasyLink V2 数据。<strong>普通 UDP 发包并不等于 EasyLink V2 帧注入</strong>。这也再次提醒我：配网不成功，先确认使用的究竟是不是正确协议。</p>
+<p>设备入网之后，社区提供两种迁移方法。一种是利用原厂已有的 <code>/OTA</code> 接口，在局域网直接上传经过校验的完整镜像；另一种更巧妙：在具备 <code>dnsmasq</code> 和 <code>nftables</code> 的路由器上，只针对这台 M1 重定向 DNS，再由局域网服务器模拟原厂激活与更新接口，让设备<strong>主动下载</strong>社区固件。教程明确要求核对镜像哈希、保持供电、确认设备身份与最终固件版本；“下载完成”或“服务器返回成功”都不等于设备已经刷写并正常启动。</p>
+<p>它使用的原厂域名、<code>/device/active</code>、TCP <code>9000</code>，与这次本地接管时遇到的线索很相似。但相似不代表方案相同：社区教程把这些接口当作<strong>迁移的跳板</strong>，迁移结束后可以清除临时 DNS 规则；我现在的方案则是<strong>保留原厂固件，让 Home Assistant 长期接过它原本连接的服务端</strong>，继续收数据、回 ACK，并发送亮度与睡眠命令。</p>
+<p>两条路各有代价。不刷机的好处是设备现有功能不必冒刷写风险，代价是要持续维护私有协议、端口与 DNS 接管；免拆 OTA 可以减少对旧云协议的长期依赖，但仍然是真正的<strong>刷机</strong>，要承担固件兼容、供电中断和恢复的风险。尤其“免拆机”和“不刷机”，绝不是一回事。</p>
+<p>对这台已经能接入 Home Assistant、控制亮度与睡眠计划，还能进 HomeKit 的 M1，我暂时更愿意让它继续按照原来的方式工作。社区教程则留下了一个有价值的后备选项，也提示未来可以研究更温和的、按设备限定的路由器 DNS 重定向，少依赖对网关 ARP 的临时调整。前提依然是路由器确实支持相关规则，而不是照抄一组命令就当成通用解法。</p>
 <h2 id="ending">写在最后</h2>
 <p>回头看，这次折腾其实解决了三个完全不同的问题：先是 Wi-Fi 配网，让设备重新连上网络，把时间走对；然后是本地接管，让它不再依赖那个早已消失的原厂服务器；最后才是 Home Assistant 集成，让原本只能在设备屏幕上看到的数据，重新流动起来，甚至还能沿着同一条连接控制屏幕亮度。</p>
 <p>整个过程中，写服务端、分析协议都花了不少功夫。但真正改变排障方向的，却是那两条不起眼的 DNS 请求。</p>
@@ -74,6 +79,7 @@ M1 → 114.114.114.114:53  aircat.phicomm.com</code></pre>
 <p>现在，至少在家里的这张网络中，它又有了一个可以回应它的地方。</p>
 <h2 id="sources">公开资料</h2>
 <ul class="references">
+<li><a href="https://phicomm-io.github.io/guides/m1-no-disassembly.html" rel="noopener noreferrer">PHICOMM COMMUNITY：M1 原厂配网与免拆安装</a>，包含热点 HTTP 配网、Linux EasyLink V2、局域网 OTA 与定向 DNS 迁移。</li>
 <li><a href="https://phicomm-io.github.io/guides/stock-provision.html" rel="noopener noreferrer">PHICOMM COMMUNITY：M1 原厂配网资料</a>，用于了解不同固件的配网入口。</li>
 <li><a href="https://phicomm-io.github.io/guides/quick-start.html" rel="noopener noreferrer">PHICOMM COMMUNITY：快速开始</a>。</li>
 <li><a href="https://phicomm-io.github.io/guides/flash-prep.html" rel="noopener noreferrer">PHICOMM COMMUNITY：固件迁移与恢复</a>。</li>
