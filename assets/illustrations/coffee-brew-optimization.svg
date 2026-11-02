@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+<title id="title">一杯咖啡，可以被算法优化吗？</title><desc id="desc">原创封面：一张咖啡冲煮实验记录卡、三组参数测试点和上升的风味评分曲线。暖棕色咖啡与深色科技图表相结合。</desc>
+<defs><linearGradient id="bg" x2="1" y2="1"><stop stop-color="#1d2429"/><stop offset="1" stop-color="#30353a"/></linearGradient><linearGradient id="line" x2="1" y2="0"><stop stop-color="#e39b64"/><stop offset="1" stop-color="#ffdc9b"/></linearGradient><filter id="shade" x="-20%" y="-30%" width="150%" height="170%"><feDropShadow dx="0" dy="18" stdDeviation="16" flood-color="#0e1113" flood-opacity=".38"/></filter></defs>
+<rect width="1200" height="630" fill="url(#bg)"/>
+<g stroke="#ffffff" opacity=".055"><path d="M0 90H1200M0 180H1200M0 270H1200M0 360H1200M0 450H1200M0 540H1200"/><path d="M90 0V630M180 0V630M270 0V630M360 0V630M450 0V630M540 0V630M630 0V630M720 0V630M810 0V630M900 0V630M990 0V630M1080 0V630"/></g>
+<circle cx="1040" cy="80" r="215" fill="#a66541" opacity=".11"/>
+<g font-family="Arial, sans-serif">
+<text x="72" y="86" fill="#e6aa79" font-size="16" font-weight="700" letter-spacing="4">CODIE LAB  /  COFFEE EXPERIMENTS</text>
+<text x="72" y="184" font-family="PingFang SC,Microsoft YaHei,sans-serif" fill="#f4eee9" font-weight="700" font-size="52">一杯咖啡，可以</text>
+<text x="72" y="255" font-family="PingFang SC,Microsoft YaHei,sans-serif" fill="#f4eee9" font-weight="700" font-size="52">被算法优化吗？</text>
+<rect x="72" y="296" width="75" height="5" rx="2.5" fill="#e6aa79"/>
+<text x="72" y="349" font-family="PingFang SC,Microsoft YaHei,sans-serif" fill="#c8c1b9" font-size="21">变量 · 记录 · 反馈 · 下一杯</text>
+<text x="72" y="558" fill="#d8af8a" font-size="15" letter-spacing="3">COFFEE LAB    /    02</text>
+</g>
+<g filter="url(#shade)">
+<rect x="646" y="84" width="488" height="469" rx="25" fill="#f9f5f0"/>
+<rect x="646" y="84" width="488" height="63" rx="25" fill="#fffaf5"/>
+<path d="M646 147H1134" stroke="#e9dfd6" stroke-width="2"/>
+<circle cx="682" cy="114" r="5.5" fill="#bc7a55"/><circle cx="702" cy="114" r="5.5" fill="#e0b582"/><circle cx="722" cy="114" r="5.5" fill="#e7d6bf"/>
+<text x="756" y="121" font-family="Arial,sans-serif" fill="#8d7563" font-size="14" font-weight="700" letter-spacing="2">BREW EXPERIMENT / 003</text>
+<text x="688" y="187" font-family="PingFang SC,Microsoft YaHei,sans-serif" fill="#3a2d25" font-size="23" font-weight="700">莓果风味 · 手冲</text>
+<rect x="1013" y="166" width="80" height="30" rx="15" fill="#e8f1e6"/>
+<text x="1053" y="186" text-anchor="middle" font-family="Arial,sans-serif" fill="#517749" font-size="13" font-weight="700">4.5 / 5</text>
+<g font-family="Arial,sans-serif" font-size="13" fill="#9a8070"><text x="692" y="229">WATER</text><text x="827" y="229">TEMP</text><text x="955" y="229">GRIND</text></g>
+<g font-family="Arial,sans-serif" font-size="25" font-weight="700" fill="#604431"><text x="688" y="262">240 g</text><text x="827" y="262">94°C</text><text x="956" y="262">20</text></g>
+<rect x="685" y="288" width="411" height="223" rx="17" fill="#fff" stroke="#eee3d8"/>
+<text x="705" y="317" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="1.6" fill="#8b705e">PERSONAL TASTE SCORE</text>
+<g stroke="#eaded4" stroke-width="1"><path d="M718 351H1065M718 389H1065M718 427H1065M718 465H1065"/></g>
+<g font-family="Arial,sans-serif" font-size="12" fill="#a48d7e"><text x="704" y="354" text-anchor="end">5</text><text x="704" y="392" text-anchor="end">4</text><text x="704" y="430" text-anchor="end">3</text><text x="704" y="468" text-anchor="end">2</text><text x="779" y="487" text-anchor="middle">01</text><text x="890" y="487" text-anchor="middle">02</text><text x="1008" y="487" text-anchor="middle">03</text></g>
+<path d="M779 437L890 405L1008 365" stroke="url(#line)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<g fill="#b67950" stroke="#fff" stroke-width="5"><circle cx="779" cy="437" r="9"/><circle cx="890" cy="405" r="9"/><circle cx="1008" cy="365" r="9"/></g>
+</g>
+<g transform="translate(448 427)"><ellipse cx="83" cy="105" rx="88" ry="13" fill="#101418" opacity=".25"/><path d="M34 30h100l-15 73H49Z" fill="#c78a5c" stroke="#e3ba94" stroke-width="7"/><ellipse cx="84" cy="30" rx="50" ry="12" fill="#4c2f22" stroke="#e3ba94" stroke-width="7"/><path d="M135 48q44 0 30 33t-38 8" fill="none" stroke="#e3ba94" stroke-width="9" stroke-linecap="round"/><path d="M63 17Q41 -9 65 -29M101 17Q125 -9 99 -31" fill="none" stroke="#e3ba94" stroke-opacity=".55" stroke-width="5" stroke-linecap="round"/></g>
+</svg>
