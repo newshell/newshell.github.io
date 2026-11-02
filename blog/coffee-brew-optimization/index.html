@@ -5,11 +5,23 @@
 <div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#question">好喝，是函数吗</a><a href="#experiment">先设计实验</a><a href="#lab">Coffee Lab 实验</a><a href="#algorithm">推荐算法的边界</a><a href="#control">控制系统的误会</a><a href="#next">下一步</a><a href="#sources">参考资料</a></aside><article class="prose">
 <p>我喜欢那些有明显莓果香的咖啡。偏偏这种味道很难稳定复现：有时酸甜明亮，有时酸得发空，还有时什么果香都没尝到。豆子没换，滤杯没换，明明只是磨度变了一点，结果却完全不同。</p><p>这很像调试一个系统：输入条件看似差不多，输出却不一致。不同的是，程序可以通过测试告诉我们结果是否满足预期；咖啡没有一个统一的“正确答案”。你喜欢的那杯，可能恰好不是别人评分最高的那杯。</p><blockquote>算法可以帮我更有条理地找，但“哪杯好喝”，最后仍然得由舌头决定。</blockquote>
 <p>这是系列第二篇。如果还不知道如何挑豆、如何区分手冲和摩卡壶，可以先读<a href="/blog/coffee-beans-brewing/">《一颗咖啡豆的风味，从哪里来？》</a>。这里不再重复讲产区和烘焙，把重点留给如何做实验。</p>
-<h2 id="question">一、“好喝”可以写成函数吗？</h2><p>先用一个粗略的数学表达：</p><div class="equation">Taste = f(bean, grinder, grind, dose, water, temperature, time, method, …)</div><p>这只是概念模型。咖啡豆随开封时间变化，磨豆机有残粉，注水轨迹不完全一致，人的感受也会受到杯温、食物和当天状态影响。即使参数表一模一样，结果也不一定完全相同。</p><p>真正要优化的也不是某个单一化学指标。浓度可以用 TDS 仪测量，萃取率可以估计，但它们都不能直接等同于“我喜欢”。当目标是个人口味时，最现实的反馈可能就是一张简单的评分表。</p>
-<div class="lab-facts"><div class="lab-fact"><strong>输入</strong><span>豆子、磨度、粉量、水温、比例</span></div><div class="lab-fact"><strong>输出</strong><span>一杯真正喝到的咖啡</span></div><div class="lab-fact"><strong>反馈</strong><span>个人评分与杯中描述</span></div></div>
-<h2 id="experiment">二、比算法更重要的是实验设计</h2><p>假设第一杯手冲用了 15 g 粉、240 g 水、93°C，喝起来偏尖酸。第二杯同时换豆、磨细、升温、增加粉量，味道变好了——但我们无法知道是哪一个变化起作用。</p><p>因此，最初的实验最好固定豆子、器具、粉量和比例，只改一个变量。比如连续试三杯：92°C、94°C、96°C；或者固定水温，比较相邻两档磨度。用同样的杯子、尽量一致的冲煮动作记录结果。</p><p>这样的记录不完美，但至少能让下一杯的变化有解释。对于莓果型浅烘豆，我会先固定其他条件，观察磨度或温度变化是否真的改善了甜感和果香，而不是急着上一个所谓“智能优化算法”。</p>
-<div class="lab-note"><p><strong>实验边界：</strong>手冲的粉水比、闷蒸时间和水温可以灵活调整；摩卡壶的粉篮容量、安全阀、热源和出液方式不同；全自动咖啡机的研磨档位也没有跨品牌统一刻度。不要直接把三种器具的参数放在同一张数值表里比较好坏。</p></div>
-<h2 id="lab">三、Coffee Lab：用浏览器记录下一杯</h2><p>下面是一个真实可用的小工具，而不只是示意 UI。它可以保存个人冲煮记录、计算手冲注水量、按评分找到当前最佳记录，并给出下一次<strong>只改一个变量</strong>的简单建议。数据只存储在当前浏览器的本地存储中，不会上传到服务器；换设备、清理浏览器数据或使用无痕模式可能丢失，请自行备份。</p>
+<h2 id="question">01 / 先承认一个事实：这是黑箱优化问题</h2>
+<p>一杯咖啡不是一个确定性函数。即使锁定豆子、粉量与器具，磨豆机残粉、豆子排气、粉床结构、水质、注水轨迹和杯温都会造成变化。最关键的输出——“我喜不喜欢”——还掺着个人感官噪声。</p>
+<div class="equation">x = [grind, temperature, ratio, dose, ...]<br>y = f(x | bean, brewer, water, day) + ε<br>目标：在有限的冲煮次数里，寻找较高的主观评分 E[y | x]。</div>
+<p>这里的 <code>ε</code> 不是一句漂亮的数学装饰。它意味着单杯 5 分未必比单杯 4 分的配方好；相同参数下的重复实验、记录日期与随机化尝试顺序，可能比立刻换一个更花哨的模型更重要。不同豆子与不同器具不能混在一起直接训练，因为它们根本不是同一个实验空间。</p>
+<h2 id="experiment">02 / 实验设计比“智能推荐”更难</h2>
+<p>先做一个非常有限的目标：<strong>固定豆子、磨豆机、滤杯、15 g 粉和 240 g 水</strong>，只优化手冲水温。设候选温度为 <code>[90, 92, 94, 96]°C</code>。如果连续四杯按从低到高的顺序冲，豆子随时间变化、感官疲劳和设备预热都会混进温度差异里。更靠谱的做法是打乱顺序，必要时隔天复测。</p>
+<p>只改一个变量有助于归因，但不是最终的最优搜索：磨度与水温之间可能存在交互作用。实验开始时用简单的单因素扫描建立基线，再根据需求扩展到二维参数空间，才有资格讨论采样策略。</p>
+<div class="lab-note"><p><strong>三个必须保留的边界：</strong>① 先做同豆同器具的比较；② 记录的是个人盲品评分而不是“萃取真值”；③ 不把手冲注水量、摩卡壶出液量和全自动咖啡机杯量当成同一种变量。物理系统不同，参数空间应分开建模。</p></div>
+<h3>把优化目标写成工程上能测试的东西</h3>
+<pre><code>// 实验对象：同一批次咖啡豆 + 同一套手冲器具
+const candidateTemps = [90, 92, 94, 96];
+const fixed = {doseG: 15, waterG: 240, grind: 20};
+
+// 每次采样前随机打乱候选顺序；每个条件尽量复测
+// 每次提交：{temperature, score, notes, timestamp}
+// 不使用不同豆子／器具的记录来估计同一条曲线
+</code></pre><h2 id="lab">三、Coffee Lab：用浏览器记录下一杯</h2><p>下面是一个真实可用的小工具，而不只是示意 UI。它可以保存个人冲煮记录、计算手冲注水量、按评分找到当前最佳记录，并给出下一次<strong>只改一个变量</strong>的简单建议。数据只存储在当前浏览器的本地存储中，不会上传到服务器；换设备、清理浏览器数据或使用无痕模式可能丢失，请自行备份。</p>
 <div class="lab" id="brewLab"><div class="lab-kicker">COFFEE LAB / LOCAL EXPERIMENT</div><h3>下一杯，试着记录下来</h3><p class="lab-intro">先选择器具。默认是莓果果香手冲；评分只表达你自己的喜好，1 分不喜欢，5 分很满意。</p>
 <form id="brewForm"><div class="lab-fields">
 <label>豆子 / 批次<input name="bean" maxlength="60" value="莓果风味豆" required></label><label>器具<select name="method" id="labMethod"><option value="pour">手冲</option><option value="moka">摩卡壶</option><option value="auto">全自动咖啡机</option></select></label>
@@ -17,8 +29,20 @@
 <label>水温（°C，仅记录可控温的方式）<input name="temp" type="number" min="60" max="100" step="1" value="93" required></label><label>研磨档位（仅在同一磨豆机比较）<input name="grind" type="number" min="1" max="100" step="1" value="20" required></label>
 <label>个人评分<select name="rating"><option value="1">1 · 不喜欢</option><option value="2">2 · 一般</option><option value="3">3 · 可以喝</option><option value="4" selected>4 · 喜欢</option><option value="5">5 · 非常喜欢</option></select></label><label>杯中感受<select name="note"><option value="balanced">均衡 / 喜欢</option><option value="sour">尖酸 / 偏薄</option><option value="bitter">苦涩 / 发干</option><option value="weak">偏淡 / 水感重</option></select></label>
 </div><div class="lab-buttons"><button class="primary" type="submit">保存这一杯</button><button type="button" id="labDemo">载入示例实验</button><button type="button" id="labExport">导出 CSV</button><button type="button" id="labClear">清空本地记录</button></div></form><p class="lab-status" id="labStatus" role="status">还没有记录。可以先载入三杯示例数据。</p><div class="lab-insight" id="labInsight" aria-live="polite"><strong>从一杯开始</strong><p>记录后，这里会展示当前最高评分和下一次建议。建议是基于规则的试验方向，不是经过训练的口味预测模型。</p></div><div class="lab-data"><table><thead><tr><th>豆子 / 器具</th><th>粉 / 水或液</th><th>水温</th><th>磨度</th><th>评分</th></tr></thead><tbody id="brewRows"><tr><td colspan="5">暂无记录</td></tr></tbody></table></div><p class="lab-intro">隐私：本组件只用本地 localStorage 保存记录。导出 CSV 不会把数据发给网站。示例数据会与已有记录合并，清空前请先导出。</p></div>
-<h2 id="algorithm">四、如果真要写算法，应该从哪里开始？</h2><p>最朴素的第一版，不需要神经网络。先确定一个豆子和一种器具，把每杯评分作为反馈，查看历史上哪些参数组合更受自己喜欢。这里展示的 Coffee Lab 使用的是<strong>规则提示</strong>，并没有声称它能预测最佳参数。</p><p>如果已经有十几杯在同一豆子、同一器具、相近条件下的记录，可以考虑更正式的优化思路：把磨度与水温看成可搜索的参数，把主观评分看成带噪声的目标函数，用网格搜索、小范围局部搜索，甚至贝叶斯优化来决定下一次尝试什么。但更复杂的算法不一定更有效——样本少、豆子会变、人的评分会漂移时，模型很容易自信地学到偶然的结果。</p><p>真正有用的工程设计反而是限制比较范围、保留原始数据和实验条件，以及允许用户随时推翻算法建议。咖啡不是一个需要拿到全局最优解的比赛。</p>
-<h2 id="control">五、全自动咖啡机算闭环控制吗？</h2><p>有些人会说：全自动咖啡机不就是控制系统吗？的确，它可以根据预设程序或传感器管理磨豆、泵水、加热、流量和萃取时间。问题是，这些控制目标通常是设备的过程参数，并不等于对“草莓香是否突出”的真实反馈。</p><p>因此，不能把“自动运行冲煮流程”和“自动优化个人口味”画等号。前者可以通过传感器做到较稳定；后者必须先定义口味目标，并且获得可靠反馈。普通家用机器大多不会读取你的舌头。</p>
+<h2 id="algorithm">04 / 真正的推荐：核回归 + 探索奖励</h2>
+<p>原来的版本用了 <code>if (偏酸) 磨细一点</code>。那是启发式排错，不是从数据中学习。在这里另做一个<strong>独立于冲煮日志的可运行实验</strong>：用一维核回归估计温度与个人评分的关系，计算每个候选温度的局部加权平均，并用“距离已测样本远近”作为探索奖励。这样，推荐结果会因为实验数据而改变。</p>
+<div class="equation">wᵢ(t) = exp(−(t − tᵢ)² / (2h²))<br>μ(t) = Σ wᵢ(t)yᵢ / Σ wᵢ(t)<br>A(t) = μ(t) + λ × novelty(t)</div>
+<p><code>h</code> 是核宽度，<code>λ</code> 是探索强度。它们是演示参数，不是经过咖啡实测校准的常数。<code>novelty</code> 只是离已有温度样本的距离得分，<strong>不是贝叶斯后验方差，也不是可信区间</strong>。这套方法可以叫 kernel smoother + exploration heuristic，不能冒充严肃的 Gaussian Process / Bayesian Optimization。</p>
+<div class="lab" id="optimizerDemo"><div class="lab-kicker">RUNNABLE EXPERIMENT / MODEL EXPLORER</div><h3>让数据决定下一杯的温度</h3><p class="lab-intro">使用一组明确标注为<strong>合成</strong>的数据。增减探索强度，再看推荐点如何变化；图中曲线不是实验结论。</p>
+<div class="lab-fields"><label>探索强度 λ <input type="range" min="0" max="3" step=".25" value="1" id="exploreSlider"></label><label>核宽度 h（°C）<input type="range" min="1" max="6" step=".5" value="2" id="bandSlider"></label></div>
+<div id="optimizerParams" class="lab-status">λ=1 · h=2°C</div>
+<svg id="optimizerPlot" viewBox="0 0 650 255" role="img" aria-label="咖啡水温与主观评分的核回归拟合图" style="width:100%;height:auto;background:var(--surface-alt);border:1px solid var(--line);border-radius:12px;margin:12px 0"><title>合成数据下的温度拟合曲线与建议采样点</title></svg>
+<div class="lab-insight" id="optimizerInsight" aria-live="polite">正在计算候选温度。</div>
+<div class="lab-buttons"><button type="button" id="sampleSuggestion">模拟采样下一杯</button><button type="button" id="resetOptimizer">重置合成实验</button></div>
+<p class="lab-intro">演示用“真实隐藏曲线 + 固定扰动”生成模拟反馈，绝不代表任何咖啡豆的实际风味。新点加入后，模型会重新拟合。</p></div>
+<h3>代码真正做了什么？</h3>
+<p>每个候选温度先用已有样本计算平滑预测，再计算该温度与最近实测温度的间隔。最大化 <code>μ + λ × novelty</code> 得到下一杯建议。<code>λ=0</code> 更偏向利用当前高分区域；探索强度升高，会更愿意试没有充分采样的温度。</p>
+<p>技术上仍有明显缺陷：小样本边界偏差、核宽度敏感、主观评分离散、实验条件漂移，也没有真实的不确定性量化。认真研究可以进一步采用重复测量、交叉验证、异方差模型与带约束的贝叶斯优化；但只有在足够多的可比数据存在之后才值得投入。</p><h2 id="control">五、全自动咖啡机算闭环控制吗？</h2><p>有些人会说：全自动咖啡机不就是控制系统吗？的确，它可以根据预设程序或传感器管理磨豆、泵水、加热、流量和萃取时间。问题是，这些控制目标通常是设备的过程参数，并不等于对“草莓香是否突出”的真实反馈。</p><p>因此，不能把“自动运行冲煮流程”和“自动优化个人口味”画等号。前者可以通过传感器做到较稳定；后者必须先定义口味目标，并且获得可靠反馈。普通家用机器大多不会读取你的舌头。</p>
 <h2 id="next">六、下一步：让记录真正有价值</h2><p>下一杯不妨重复上次最好喝的配方，看它是否还能拿到相近评分；再只改变一个变量，做一次对照。比起马上增加十几个参数，我更愿意先验证两件小事：记录能否复现，建议是否真的改善了自己的体验。</p><p>如果连相同条件下的味道都不稳定，那么最需要优化的可能不是算法，而是称量、研磨和冲煮动作。这也是咖啡和编程很像的地方：可靠的输入与可重复的实验，永远比一个看起来聪明的结论重要。</p><blockquote>计算机可以帮你记住每一杯，但它无法代替你喜欢上一杯咖啡。</blockquote>
 <p>如果你想先从咖啡豆和器具本身开始，回到系列第一篇：<a href="/blog/coffee-beans-brewing/">《一颗咖啡豆的风味，从哪里来？》</a>。</p>
 <h2 id="sources">公开资料</h2><ul class="references"><li><a href="https://sca.coffee/research/protocols-best-practices" rel="noopener noreferrer">Specialty Coffee Association：Protocols &amp; Best Practices</a>，用于区分感官评价与冲煮参数。</li><li><a href="https://www.nngroup.com/articles/ab-testing-101/" rel="noopener noreferrer">Nielsen Norman Group：A/B Testing 101</a>，对比实验与设计取舍的通用思路。</li><li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Window/localStorage" rel="noopener noreferrer">MDN：Window.localStorage</a>，说明浏览器本地保存数据的适用范围和限制。</li><li><a href="/blog/coffee-beans-brewing/">系列第一篇：咖啡豆风味与三种冲煮方法</a>。</li></ul><div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-11-02</span></div></article></div></main><footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>一杯咖啡，也可以是一场小实验</span></footer><script src="/assets/site.js" defer></script>
@@ -32,4 +56,13 @@ document.getElementById('labDemo').addEventListener('click',()=>{entries.push(..
 document.getElementById('labClear').addEventListener('click',()=>{if(!confirm('确定清空当前浏览器里的 Coffee Lab 记录？此操作不能撤销。'))return;entries=[];persist();render();});
 document.getElementById('labExport').addEventListener('click',()=>{const keys=['date','bean','method','dose','water','temp','grind','rating','note'];const csv=[keys.join(','),...entries.map(e=>keys.map(k=>{let s=String(e[k]??'');if(/^[=+@-]/.test(s))s="'"+s;return '"'+s.replace(/"/g,'""')+'"'}).join(','))].join('\r\n');const blob=new Blob(['\uFEFF',csv],{type:'text/csv;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='coffee-lab-records.csv';a.click();URL.revokeObjectURL(url);});
 render();})();
+</script><script>
+(()=>{const svg=document.getElementById('optimizerPlot'),lambdaInput=document.getElementById('exploreSlider'),bandInput=document.getElementById('bandSlider'),out=document.getElementById('optimizerInsight'),params=document.getElementById('optimizerParams');if(!svg)return;
+const ns='http://www.w3.org/2000/svg',initial=[{x:90,y:2.8},{x:94,y:4.2},{x:96,y:3.4}];let samples=initial.map(p=>({...p})),round=0;
+const candidates=Array.from({length:13},(_,i)=>88+i),truth=t=>2.1+2.25*Math.exp(-((t-93.5)/2.5)**2)-.055*Math.max(0,t-96);
+const make=(tag,attrs)=>{const n=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));svg.append(n);return n};const scaleX=x=>54+(x-88)*43.8,scaleY=y=>223-(y-1)*42;
+function predict(t,h){let numerator=0,denominator=0;samples.forEach(s=>{const w=Math.exp(-((t-s.x)**2)/(2*h*h));numerator+=w*s.y;denominator+=w});return denominator>1e-9?numerator/denominator:3}
+function novelty(t){return Math.min(1,Math.min(...samples.map(s=>Math.abs(t-s.x)))/4)}
+function render(){const lam=Number(lambdaInput.value),h=Number(bandInput.value);params.textContent='λ = '+lam.toFixed(2)+' · h = '+h.toFixed(1)+'°C · samples = '+samples.length;const points=candidates.map(x=>({x,mean:predict(x,h),novelty:novelty(x)})).map(p=>({...p,acq:p.mean+lam*p.novelty}));const next=points.slice().sort((a,b)=>b.acq-a.acq||a.x-b.x)[0];svg.replaceChildren();[1,2,3,4,5].forEach(t=>{make('line',{x1:54,y1:scaleY(t),x2:614,y2:scaleY(t),stroke:'currentColor','stroke-opacity':'.12'});const txt=make('text',{x:35,y:scaleY(t)+4,fill:'currentColor','fill-opacity':'.65','font-size':12});txt.textContent=String(t)});[88,90,92,94,96,98,100].forEach(t=>{const x=scaleX(t);const text=make('text',{x,y:242,'text-anchor':'middle',fill:'currentColor','fill-opacity':'.65','font-size':12});text.textContent=t+'°'});const d=candidates.map((t,i)=>(i?'L':'M')+scaleX(t)+' '+scaleY(predict(t,h))).join(' ');make('path',{d,fill:'none',stroke:'#c47b4a','stroke-width':3,'stroke-linejoin':'round'});samples.forEach(s=>make('circle',{cx:scaleX(s.x),cy:scaleY(s.y),r:6,fill:'#4b86ce',stroke:'#fff','stroke-width':2}));make('line',{x1:scaleX(next.x),x2:scaleX(next.x),y1:28,y2:224,stroke:'#71a475','stroke-width':2,'stroke-dasharray':'5 5'});out.textContent='建议下一次尝试 '+next.x+'°C；预测评分 '+next.mean.toFixed(2)+'/5，探索奖励 '+(lam*next.novelty).toFixed(2)+'。已有 '+samples.length+' 条合成观测。';svg.dataset.next=String(next.x)}
+lambdaInput.addEventListener('input',render);bandInput.addEventListener('input',render);document.getElementById('resetOptimizer').addEventListener('click',()=>{samples=initial.map(p=>({...p}));round=0;render()});document.getElementById('sampleSuggestion').addEventListener('click',()=>{const t=Number(svg.dataset.next);if(!Number.isFinite(t))return;const offsets=[.12,-.2,.08,.0,-.11,.17];const rating=Math.max(1,Math.min(5,truth(t)+offsets[round++%offsets.length]));samples.push({x:t,y:rating});render()});render();})();
 </script></body></html>
