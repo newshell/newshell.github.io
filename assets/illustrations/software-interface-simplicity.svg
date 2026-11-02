@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="t d">
+<title id="t">好软件的界面为什么越来越简单？</title><desc id="d">原创概念图：从复杂功能面板到清晰任务界面。</desc>
+<defs><linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f8fafc"/><stop offset="1" stop-color="#eaf1f8"/></linearGradient><linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3998f5"/><stop offset="1" stop-color="#0066cc"/></linearGradient><filter id="shadow" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="16" stdDeviation="20" flood-color="#22344b" flood-opacity=".12"/></filter></defs>
+<rect width="1200" height="630" fill="url(#bg)"/>
+<g opacity=".42" stroke="#dce4ed" stroke-width="1"><path d="M0 80H1200M0 160H1200M0 240H1200M0 320H1200M0 400H1200M0 480H1200M0 560H1200"/><path d="M80 0V630M160 0V630M240 0V630M320 0V630M400 0V630M480 0V630M560 0V630M640 0V630M720 0V630M800 0V630M880 0V630M960 0V630M1040 0V630M1120 0V630"/></g>
+<rect x="54" y="58" width="530" height="514" rx="30" fill="#fff" stroke="#e2e8f0"/>
+<text x="96" y="126" font-family="Arial,sans-serif" font-size="17" font-weight="700" letter-spacing="3" fill="#0877d8">CODIE LAB  /  DESIGN NOTES</text>
+<text x="96" y="238" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="55" font-weight="700" fill="#1d1d1f">好软件的界面</text>
+<text x="96" y="312" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="55" font-weight="700" fill="#1d1d1f">为什么越来越简单？</text>
+<rect x="98" y="360" width="76" height="6" rx="3" fill="#0877d8"/>
+<text x="96" y="426" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="25" fill="#626a75">界面少了，设计并没有变少。</text>
+<text x="96" y="520" font-family="Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="2" fill="#9299a3">INTERFACE · HIERARCHY · EXPERIENCE</text>
+<g filter="url(#shadow)">
+<rect x="646" y="100" width="500" height="430" rx="27" fill="#fff" stroke="#dfe5ec"/>
+<rect x="646" y="100" width="500" height="58" rx="27" fill="#fff"/>
+<path d="M646 158H1146" stroke="#e9edf2"/>
+<circle cx="682" cy="129" r="6" fill="#ff6258"/><circle cx="704" cy="129" r="6" fill="#ffbd4a"/><circle cx="726" cy="129" r="6" fill="#35c76f"/>
+<rect x="670" y="181" width="120" height="325" rx="15" fill="#f5f7fa"/>
+<rect x="689" y="211" width="73" height="8" rx="4" fill="#0877d8"/><rect x="689" y="249" width="82" height="7" rx="3.5" fill="#d0d7e0"/><rect x="689" y="283" width="65" height="7" rx="3.5" fill="#d0d7e0"/><rect x="689" y="317" width="78" height="7" rx="3.5" fill="#d0d7e0"/><rect x="689" y="351" width="55" height="7" rx="3.5" fill="#d0d7e0"/>
+<text x="824" y="214" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="26" font-weight="700" fill="#1d1d1f">导出照片</text>
+<text x="824" y="248" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="15" fill="#7b8490">选择适合你的格式</text>
+<rect x="820" y="274" width="294" height="90" rx="16" fill="#f1f7ff" stroke="#d8e8fa"/>
+<rect x="841" y="296" width="34" height="34" rx="10" fill="url(#blue)"/>
+<path d="M850 313l7 7 11-14" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="891" y="307" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="18" font-weight="700" fill="#1d1d1f">高质量 JPEG</text>
+<text x="891" y="333" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="13" fill="#7b8490">适合分享与日常保存</text>
+<rect x="820" y="383" width="294" height="52" rx="13" fill="#fafbfc" stroke="#e6eaf0"/>
+<path d="M843 403l7 7 7-7" fill="none" stroke="#0877d8" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="873" y="415" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="16" fill="#46505c">更多选项</text>
+<rect x="982" y="456" width="132" height="48" rx="24" fill="url(#blue)"/>
+<text x="1048" y="486" text-anchor="middle" font-family="PingFang SC,Microsoft YaHei,sans-serif" font-size="17" font-weight="700" fill="#fff">导出</text>
+</g></svg>
