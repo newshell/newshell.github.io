@@ -1,5 +1,5 @@
-<!doctype html><html lang="zh-CN"><head><meta name="description" content="一台闲置多年的空气检测仪如何重新接入 Wi-Fi、恢复时间、本地接管失效的云服务，并最终进入 Home Assistant。"><title>斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口 · codie lab</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script><link rel="canonical" href="https://blog.codie.uk/blog/phicomm-m1-local-revival/"><meta property="og:type" content="article"><meta property="og:site_name" content="codie lab"><meta property="og:title" content="斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口 · codie lab"><meta property="og:description" content="一台闲置多年的空气检测仪如何重新接入 Wi-Fi、恢复时间、本地接管失效的云服务，并最终进入 Home Assistant。"><meta property="og:url" content="https://blog.codie.uk/blog/phicomm-m1-local-revival/"><meta property="og:image" content="https://blog.codie.uk/assets/social/phicomm-m1-local-revival.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口 · codie lab"><meta name="twitter:description" content="一台闲置多年的空气检测仪如何重新接入 Wi-Fi、恢复时间、本地接管失效的云服务，并最终进入 Home Assistant。"><meta name="twitter:image" content="https://blog.codie.uk/assets/social/phicomm-m1-local-revival.png"></head><body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a><header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/">首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/">关于</a><a href="/terms/" >术语</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
-<main id="main"><header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> 硬件与网络 · 2026-10-31</p><h1>斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口<span class="accent">.</span></h1><p class="lead">先连上 Wi-Fi，让时间重新走对；再接管已经消失的云服务，最后让测量数据进入 Home Assistant。</p></header><figure class="article-banner"><img src="/assets/illustrations/m1-network.svg" alt="M1 从硬编码公共 DNS 访问到本地服务接管的动画示意"><figcaption>图 1｜设备与本地服务之间的路径。原创示意动画，隐去实际网络身份；支持减少动态效果的系统设置。</figcaption></figure><div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#easylink">先让时间走对</a><a href="#cloud">它还在等云端</a><a href="#dns">抓到真正的 DNS</a><a href="#takeover">本地接管</a><a href="#ha">接入 Home Assistant</a><a href="#brightness">屏幕亮度控制</a><a href="#alternatives">其他办法</a><a href="#ending">写在最后</a><a href="#sources">公开资料</a></aside><article class="prose">
+<!doctype html><html lang="zh-CN"><head><meta name="description" content="斐讯悟空 M1 的本地协议接管、免拆 OTA 社区固件迁移、双 MCU 版本兼容与安全边界记录。"><title>斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口 · codie lab</title><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css"><script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script><link rel="canonical" href="https://blog.codie.uk/blog/phicomm-m1-local-revival/"><meta property="og:type" content="article"><meta property="og:site_name" content="codie lab"><meta property="og:title" content="斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口 · codie lab"><meta property="og:description" content="M1 本地接管与社区固件迁移：从恢复原厂协议到获得持续维护的固件。"><meta property="og:url" content="https://blog.codie.uk/blog/phicomm-m1-local-revival/"><meta property="og:image" content="https://blog.codie.uk/assets/social/phicomm-m1-local-revival.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:image:type" content="image/png"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口 · codie lab"><meta name="twitter:description" content="M1 本地接管与社区固件迁移：从恢复原厂协议到获得持续维护的固件。"><meta name="twitter:image" content="https://blog.codie.uk/assets/social/phicomm-m1-local-revival.png"></head><body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a><header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/">首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/">关于</a><a href="/terms/" >术语</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
+<main id="main"><header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> 硬件与网络 · 2026-11-02</p><h1>斐讯悟空 M1 复活记：让一台失联的空气检测仪重新开口<span class="accent">.</span></h1><p class="lead">从原厂协议本地接管，到免拆 OTA 社区固件迁移：记录一台 M1 的两种复活路线、双 MCU 架构与安全边界。</p></header><figure class="article-banner"><img src="/assets/illustrations/m1-network.svg" alt="M1 从硬编码公共 DNS 访问到本地服务接管的动画示意"><figcaption>图 1｜设备与本地服务之间的路径。原创示意动画，隐去实际网络身份；支持减少动态效果的系统设置。</figcaption></figure><div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#easylink">先让时间走对</a><a href="#cloud">它还在等云端</a><a href="#dns">抓到真正的 DNS</a><a href="#takeover">本地接管</a><a href="#ha">接入 Home Assistant</a><a href="#brightness">屏幕亮度控制</a><a href="#alternatives">免拆迁移入口</a><a href="#firmware">后续固件</a><a href="#security">安全审计</a><a href="#ending">写在最后</a><a href="#sources">公开资料</a></aside><article class="prose">
 <figure class="real-evidence"><img src="/assets/images/m1-device-real.jpg" alt="斐讯悟空 M1 设备实拍，屏幕显示 PM2.5、甲醛、温度和湿度" width="400" height="300" loading="eager" style="width:100%;height:auto;max-width:800px;object-fit:contain;border-radius:12px"><figcaption>这台 M1 的真实照片。屏幕上的数值和 Wi-Fi 图标均来自实拍，并非重新生成。</figcaption></figure>
 <p>家里有台斐讯悟空 M1 空气检测仪，已经闲置了很久。</p>
 <p>它倒不是真的坏了。屏幕依旧亮着，温湿度、PM2.5 和甲醛也都能正常测量。只是斐讯早已退场，曾经与它相连的云端服务也随之消失。一台硬件完好的设备，就这样成了一座孤岛。</p>
@@ -71,7 +71,55 @@ M1 → 114.114.114.114:53  aircat.phicomm.com</code></pre>
 <p>它使用的原厂域名、<code>/device/active</code>、TCP <code>9000</code>，与这次本地接管时遇到的线索很相似。但相似不代表方案相同：社区教程把这些接口当作<strong>迁移的跳板</strong>，迁移结束后可以清除临时 DNS 规则；我现在的方案则是<strong>保留原厂固件，让 Home Assistant 长期接过它原本连接的服务端</strong>，继续收数据、回 ACK，并发送亮度与睡眠命令。</p>
 <p>两条路各有代价。不刷机的好处是设备现有功能不必冒刷写风险，代价是要持续维护私有协议、端口与 DNS 接管；免拆 OTA 可以减少对旧云协议的长期依赖，但仍然是真正的<strong>刷机</strong>，要承担固件兼容、供电中断和恢复的风险。尤其“免拆机”和“不刷机”，绝不是一回事。</p>
 <p>对这台已经能接入 Home Assistant、控制亮度与睡眠计划，还能进 HomeKit 的 M1，我暂时更愿意让它继续按照原来的方式工作。社区教程则留下了一个有价值的后备选项，也提示未来可以研究更温和的、按设备限定的路由器 DNS 重定向，少依赖对网关 ARP 的临时调整。前提依然是路由器确实支持相关规则，而不是照抄一组命令就当成通用解法。</p>
-<h2 id="ending">写在最后</h2>
+<h2 id="firmware">八、后续固件：从“给原厂协议续命”到“让设备重新有维护者”</h2>
+<p>本地接管并不是 M1 唯一的终点。它让设备沿着原来的协议继续工作；社区固件则试图给设备换上一套仍然有人维护的系统。两条路线不是简单的替代关系，而是把维护成本放在了不同的位置。</p>
+<table><thead><tr><th>路线</th><th>做法</th><th>收益与代价</th></tr></thead><tbody>
+<tr><td><strong>原厂固件 + 本地接管</strong></td><td>在 Home Assistant 一侧模拟原来的云服务，继续使用设备现有 TCP / JSON 协议。</td><td>不刷机，保留原厂行为，过程相对可逆；但要长期维护私有协议、DNS 与服务端兼容，功能上限由原厂固件决定。</td></tr>
+<tr><td><strong>社区固件</strong></td><td>迁移 Wi-Fi MCU 固件，并按需要单独更新传感器主控；使用社区维护的 WebUI、MQTT、Home Assistant discovery 和本地控制。</td><td>减少对原厂云和旧协议的依赖，获得公开源码与持续更新；但要承担刷写风险，以及固件、主控、前端和配置之间的版本维护。</td></tr>
+</tbody></table>
+<blockquote>本地接管，是让 M1 继续沿着原来的电话线工作；社区固件，则是给它换上一套仍然有人维护的神经系统。</blockquote>
+<h3>先看清楚：M1 里面有两颗 MCU</h3>
+<p>社区项目最值得先弄明白的地方，是 M1 并不是一颗芯片包办所有事情。它有两套独立的固件和版本号：</p>
+<table><thead><tr><th>模块</th><th>芯片</th><th>主要职责</th><th>更新方式</th></tr></thead><tbody>
+<tr><td>Wi-Fi MCU / 联网模块</td><td><code>EMW3080</code>（具体硬件资料也标注 <code>EMW3080B / MK3080B</code>）</td><td>Wi-Fi、网络通信、本地 WebUI、MQTT。</td><td>通过设备网页更新 Wi-Fi 固件。</td></tr>
+<tr><td>传感器主控</td><td><code>ATSAMD20G18A</code></td><td>与传感器通信，控制屏幕、按键、蜂鸣器等设备侧功能。</td><td>通过单独的主控升级流程更新，不走普通 Wi-Fi OTA。</td></tr>
+</tbody></table>
+<p>所以，网页上显示 Wi-Fi 固件升级成功，不代表传感器主控也升级了。双区域显示、双击动作、PM2.5 平滑等能力，需要联网固件、前端和传感器主控达到对应版本并彼此配套；普通 OTA 不会替你把两颗 MCU 一起更新。版本读取失败时应当按 <code>unknown</code> 处理，而不是根据 Wi-Fi 版本猜测主控版本。</p>
+<p>社区文档目前建议原厂传感器主控 <code>11.x</code> 迁移到开源主控；原厂 <code>17.1.2.3 / 17.x</code> 的差异较大，暂不建议迁移。只想恢复原有 PM2.5、甲醛、温湿度读数，并不需要为了“完整升级”而额外刷传感器主控。先读清设备信息，再决定是否有升级必要。</p>
+<h3>“免拆机”不等于“没有刷写风险”</h3>
+<p>社区教程提供了利用原厂 OTA 能力进行首次迁移的路径，因此可以不拆外壳、不接串口；但它依然会写入 Flash。“免拆”描述的是物理操作方式，不代表没有风险，也不代表失败后一定能从网页恢复。</p>
+<p>M1 首次迁移有明确的文件边界：原厂固件至少需要达到 <code>0.9.21</code>，并按教程使用对应型号的<strong>完整原生 OTA 镜像</strong>。原厂升级接口不接受社区后续更新使用的签名包装文件。迁移之后，正常社区固件更新使用经过签名的 <code>.ota.bin.signed</code>；<code>.all.bin</code> 是完整 Flash 镜像，属于有线刷写用途，不能当作 OTA 文件上传。文件类型看起来相似，实际用途不能混用。</p>
+<p>迁移前先确认设备型号和原厂版本，从官方发布页下载对应镜像并核对同一 Release 的 <code>SHA256SUMS</code>；备份可备份的配置，保证供电稳定，写入期间不要断电或重启。迁移完成后，按教程重新连接设备热点（例如 <code>M1-AP-XXXXXX</code>）或访问 <code>192.168.0.1</code> 配网，再检查实际运行版本和设备功能。若 WebUI 已无法访问，应按对应的有线恢复流程处理，不能把“免拆迁移”理解成永远不需要恢复手段。</p>
+<p>原厂 OTA 接口上传镜像与定向 DNS 让设备主动下载，是两种不同的迁移入口；无论选择哪一种，都应把临时 DNS、HTTPS 应答服务和测试路由限制在这台设备上，并在迁移结束后清理。尤其不要把实验用的域名重定向、ARP 规则或临时服务遗留在家庭网络里。</p>
+<h3>版本快照：稳定版与候选版分开看</h3>
+<p>截至 <time datetime="2026-11-02">2026 年 11 月 2 日</time>，社区下载页将 <code>v0.9.27</code> 标为稳定版，将 <code>v1.0.0-rc.5</code> 标为 Beta 候选版。RC5 于 10 月 31 日发布，仍需手动下载和安装，不会自动替代稳定 OTA 通道。</p>
+<table><thead><tr><th>通道</th><th>版本</th><th>发布时间</th><th>定位</th></tr></thead><tbody>
+<tr><td>稳定版</td><td><code>v0.9.27</code></td><td>2026-10-25</td><td>日常使用基线。</td></tr>
+<tr><td>候选版</td><td><code>v1.0.0-rc.5</code></td><td>2026-10-31</td><td>Beta 测试；需要核对机型、变体、累计变更和配套组件。</td></tr>
+</tbody></table>
+<p>这里还要避免一个常见误读：候选版发布说明会累计展示 RC 系列的变化，不能把所有功能都说成是 RC5 当天新增。RC4 阶段已经引入 HTTP、设备 MQTT 和 UDP 业务默认使用 MessagePack 的通信调整，旧 JSON 业务路径被移除，Home Assistant 侧保留 compact JSON；旧脚本需要适配，并使用匹配版本的前端和平台服务。RC5 则继续修复认证、通信和网页问题，并补齐 M1 远程读数等能力。升级前应看完整累计说明，而不是只看版本号。</p>
+<p>候选版的 M1 能力重点包括：两个显示区域分别配置数据源、有效期和显示格式；双击动作；PM2.5 三样本中值与自适应平滑；外部数据映射与过期回退。社区固件的其他扩展还包括外接 <code>SCD40</code> CO₂、<code>BMP388 / BMP390</code> 气压，以及更完整的颗粒物数据。需要注意，SCD40 是外接传感器，不是 M1 原机凭空增加了 CO₂ 测量能力；部分传感器扩展和提示音、RTTTL 闹钟等功能也早已在此前稳定版本逐步加入，并非全部属于 RC5 新特性。</p>
+<p>候选版的设备发现与平台接入也在继续演进：包括 mDNS 发现、带密码配对的 UDP、TMCP v2 MQTT，以及 Home Assistant discovery。配置备份与恢复不只是导出一份 JSON；恢复时还会检查设备型号、变体、配置版本和内容，避免把另一型号或不兼容版本的配置直接写回设备。网页认证也要按实际版本理解：未设置管理密码时可能无需登录；设置后使用对应的会话 / token 机制，并保留部分 Basic Auth 兼容路径。UDP 配对和外部 MQTT broker 的认证仍是独立配置，不能把网页密码当成所有链路的统一凭据。</p>
+<p>设备侧功能则包括四档屏幕亮度、睡眠计划、闹钟音、RTTTL 音乐，以及单击、双击和长按等按键动作。这里同样要看主控能力：Wi-Fi 固件提供网页和网络接口，真正驱动屏幕、蜂鸣器和按键的是 ATSAMD20G18A；缺少匹配主控版本时，网页可能隐藏功能或明确提示能力不足。</p>
+<p>还要把 HomeKit 的边界说清楚：M1 本身不是原生 HomeKit 设备。本文现有的 Apple 家庭控制，是通过 Home Assistant 的 HomeKit Bridge 暴露实体；社区固件自身的相关桥接仍属实验能力。DAIKIN hub 变体上的可选 HAP 桥接是另一条产品路线，不应套用到 M1，也不能把 HAP 说成 Matter。</p>
+<p>Wi-Fi 固件、传感器主控、前端资源和 IoTCloud 平台分别发布，升级其中一项不会自动更新其他组件。升级前应同时核对设备固件、主控、前端和平台的兼容要求。</p>
+<h3 id="security">安全审计：结论必须带上版本边界</h3>
+<p>除功能外，社区固件还值得从安全边界上看一遍。下面记录的是对一台运行 <code>0.9.27-99770e</code> 构建设备进行的只读检查，<strong>只对本次检查对象和检查范围负责，不能自动推定 RC5 也存在相同问题</strong>：</p>
+<ul>
+<li>未设置网页管理密码时，管理 API 实际处于未认证状态；</li>
+<li>部分 HTTP POST 对 <code>Origin</code> 和 <code>Content-Type</code> 的约束不足，测试中观察到恶意来源的 <code>text/plain</code> 请求仍可能进入命令处理层；</li>
+<li>设备提供手动 OTA 上传入口，本次检查未观察到明确的 release counter 或最低版本限制；</li>
+<li>HTTPS OTA 未验证服务器证书 CA，传输层的服务器身份验证不足，固件签名校验因此是关键安全边界；</li>
+<li>HTTP + Basic Auth 和 MQTT 使用明文传输，不应将管理接口或 MQTT 暴露到不可信网络；</li>
+<li>本次检查范围内未发现明显远程后门机制，但这不等于完成了全面安全审计。</li>
+</ul>
+<p>也有值得肯定的设计：签名 OTA 使用 <code>P-256 / SHA-256</code>，在写入前验证签名，并在写入后进行 Flash SHA-256 校验和兼容性检查。传输层证书校验不足，与固件包自身的签名验证是两个不同问题；不能因为 HTTPS 没有验证 CA，就忽略 OTA 签名机制，也不能因为固件签名存在，就认为管理 API、明文 MQTT 和本地网页没有风险。</p>
+<p>源码对照也需要留出边界。公开仓库保留了 <code>archive/0.9.x</code> 分支，本次参考的源码快照为 <code>2048ff2f6f2a3597f2bc67d89fb56a86e2f24ca5</code>。设备上的精确构建 <code>99770e</code> 没有在公开仓库中找到一一对应的提交。因此文章中的结论应区分三类证据：设备上的实测、相近公开源码能够确认的实现，以及尚未对 RC5 复核的行为。不能用“源码里就是这样”把它们混成一个结论。</p>
+<h3>两条路线最后怎么选</h3>
+<p>如果目标是尽量少改动，先让现有设备恢复工作，那么原厂协议本地接管仍然很合适：它保留了设备原来的行为，也已经证明数据上报、亮度和睡眠控制可以在没有原厂云的情况下继续工作。</p>
+<p>如果目标是不再依赖已经停服的原厂服务，并且愿意持续跟进社区发布，那么社区固件更适合作为长期路线。它带来的不只是新功能，还有公开代码、版本记录和新的维护者；相应地，维护责任也从私有协议转移到了 Wi-Fi 固件、传感器主控、前端、平台和设备配置的兼容矩阵上。</p>
+<blockquote>复活一台设备，不只是让它重新亮起来，而是要为它找到一个还能继续被维护的理由。</blockquote>
+<h2 id="ending">九、写在最后</h2>
 <p>回头看，这次折腾其实解决了三个完全不同的问题：先是 Wi-Fi 配网，让设备重新连上网络，把时间走对；然后是本地接管，让它不再依赖那个早已消失的原厂服务器；最后才是 Home Assistant 集成，让原本只能在设备屏幕上看到的数据，重新流动起来，甚至还能沿着同一条连接控制屏幕亮度。</p>
 <p>整个过程中，写服务端、分析协议都花了不少功夫。但真正改变排障方向的，却是那两条不起眼的 DNS 请求。</p>
 <p>有时候，解决问题并不需要再加一层配置、再写一段代码。只需要少一点猜测，多看一眼设备究竟在做什么。</p>
@@ -80,11 +128,18 @@ M1 → 114.114.114.114:53  aircat.phicomm.com</code></pre>
 <h2 id="sources">公开资料</h2>
 <ul class="references">
 <li><a href="https://phicomm-io.github.io/guides/m1-no-disassembly.html" rel="noopener noreferrer">PHICOMM COMMUNITY：M1 原厂配网与免拆安装</a>，包含热点 HTTP 配网、Linux EasyLink V2、局域网 OTA 与定向 DNS 迁移。</li>
+<li><a href="https://phicomm-io.github.io/guides/quick-start.html" rel="noopener noreferrer">PHICOMM COMMUNITY：快速开始</a>，说明支持设备、稳定版与候选版定位。</li>
+<li><a href="https://phicomm-io.github.io/guides/en/firmware-update.html" rel="noopener noreferrer">PHICOMM COMMUNITY：固件更新说明</a>，说明首次迁移镜像、签名 OTA 与文件类型。</li>
+<li><a href="https://phicomm-io.github.io/guides/en/m1-guide.html" rel="noopener noreferrer">PHICOMM COMMUNITY：M1 使用说明</a>，包含 M1 功能与兼容条件。</li>
+<li><a href="https://phicomm-io.github.io/guides/m1-mcu-firmware.html" rel="noopener noreferrer">PHICOMM COMMUNITY：M1 传感器主控固件</a>，说明两颗 MCU、版本矩阵与主控能力。</li>
+<li><a href="https://phicomm-io.github.io/guides/m1-mcu-update.html" rel="noopener noreferrer">PHICOMM COMMUNITY：M1 传感器主控网络升级教程</a>。</li>
+<li><a href="https://github.com/phicomm-io/iotcloud-community-firmware/releases/tag/v1.0.0-rc.5" rel="noopener noreferrer">社区固件 v1.0.0-rc.5 发布记录与下载</a>。</li>
+<li><a href="https://github.com/phicomm-io/iotcloud-community-firmware/tree/archive/0.9.x" rel="noopener noreferrer">Wi-Fi 固件 0.9.x 归档源码</a>。</li>
+<li><a href="https://github.com/phicomm-io/iotcloud-community-frontend" rel="noopener noreferrer">社区前端源码</a>；<a href="https://github.com/phicomm-io/phicomm_m1_mcu_atsamd20" rel="noopener noreferrer">M1 传感器主控源码</a>；<a href="https://github.com/phicomm-io/iotcloud-community-protocols" rel="noopener noreferrer">开发协议</a>。</li>
 <li><a href="https://phicomm-io.github.io/guides/stock-provision.html" rel="noopener noreferrer">PHICOMM COMMUNITY：M1 原厂配网资料</a>，用于了解不同固件的配网入口。</li>
-<li><a href="https://phicomm-io.github.io/guides/quick-start.html" rel="noopener noreferrer">PHICOMM COMMUNITY：快速开始</a>。</li>
 <li><a href="https://phicomm-io.github.io/guides/flash-prep.html" rel="noopener noreferrer">PHICOMM COMMUNITY：固件迁移与恢复</a>。</li>
 <li><a href="https://github.com/a2633063/zm1" rel="noopener noreferrer">zM1 社区项目</a>。</li>
 </ul>
-<p class="meta">本文是一次自有设备的排障记录；网络地址、MAC 和原始数据包已匿名化。设备实拍与 HA 面板截图已嵌入本文，截图已按隐私要求裁剪。</p>
-<div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-11-01</span></div>
+<p class="meta">本文是一次自有设备的排障与固件路线研究记录；网络地址、MAC 和原始数据包已匿名化。设备实拍与 HA 面板截图已按隐私要求裁剪。社区固件版本和安全审计结论均注明了对应时间与版本边界。</p>
+<div class="article-end"><a href="/blog/">← 返回所有文章</a><span> · 2026-11-02</span></div>
 </article></div></main><footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>公开技术资料与可核查的排障记录</span></footer><script src="/assets/site.js" defer></script></body></html>
