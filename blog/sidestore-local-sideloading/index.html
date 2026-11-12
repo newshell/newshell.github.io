@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7">
+<meta name="description" content="SideStore 为什么不需要常驻 AltServer？从 Apple 开发者签名、配对文件、LocalDevVPN、EM Proxy、Minimuxer 到 Anisette，拆解 iOS 侧载的本地化工作流。">
+<title>SideStore：把电脑从侧载流程里拿掉，靠的是什么？· codie lab</title>
+<link rel="canonical" href="https://blog.codie.uk/blog/sidestore-local-sideloading/"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
+<meta property="og:type" content="article"><meta property="og:site_name" content="codie lab"><meta property="og:title" content="SideStore：把电脑从侧载流程里拿掉，靠的是什么？"><meta property="og:description" content="不是绕过签名，而是把签名、安装和设备通信重新组织到 iPhone 本机。"><meta property="og:url" content="https://blog.codie.uk/blog/sidestore-local-sideloading/"><meta property="og:image" content="https://blog.codie.uk/assets/illustrations/sidestore-architecture.svg"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="SideStore：把电脑从侧载流程里拿掉，靠的是什么？"><meta name="twitter:description" content="不是绕过签名，而是把签名、安装和设备通信重新组织到 iPhone 本机。"><meta name="twitter:image" content="https://blog.codie.uk/assets/illustrations/sidestore-architecture.svg">
+<style>
+.ss-note{border-left:3px solid var(--accent);background:var(--surface-alt);padding:15px 19px;border-radius:0 12px 12px 0;margin:23px 0}.ss-note p{margin:0!important}.ss-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:24px 0}.ss-card{border:1px solid var(--line);background:var(--surface);border-radius:15px;padding:17px}.ss-card strong{display:block;margin-bottom:6px}.ss-card p{font-size:13px;color:var(--muted);margin:0!important}.ss-stack{border:1px solid var(--line);background:var(--surface);border-radius:17px;padding:18px 20px;margin:22px 0}.ss-layer{display:grid;grid-template-columns:145px 1fr;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}.ss-layer:last-child{border:0}.ss-layer b{font-size:13px}.ss-layer span{font-size:13px;color:var(--muted)}.ss-flow{display:flex;align-items:stretch;gap:8px;margin:22px 0;flex-wrap:wrap}.ss-flow div{flex:1 1 130px;border:1px solid var(--line);border-radius:12px;padding:13px;background:var(--surface);font-size:13px}.ss-flow b{display:block;margin-bottom:4px}.ss-flow span{color:var(--muted)}.ss-callout{font-size:13px;color:var(--muted)}@media(max-width:650px){.ss-grid{grid-template-columns:1fr}.ss-layer{grid-template-columns:1fr;gap:4px}}
+</style>
+</head>
+<body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a>
+<header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/">首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/">关于</a><a href="/terms/">术语</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
+<main id="main">
+<header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> iOS 工程与软件生态 · 2026-11-12</p><h1>SideStore：把电脑从侧载流程里拿掉，靠的是什么？<span class="accent">.</span></h1><p class="lead">它不是让 iOS 不再需要签名，而是把签名、安装和设备通信重新组织到 iPhone 本机。真正巧妙的部分，是那条看起来像 VPN 的本地通道。</p></header>
+<figure class="article-banner"><img src="/assets/illustrations/sidestore-architecture.svg" alt="SideStore 本机侧载架构：Apple 签名服务、SideStore、LocalDevVPN、EM Proxy 与 iOS 安装服务"><figcaption>电脑只在初次安装和建立配对关系时出现；后续刷新与安装主要在设备本机完成。</figcaption></figure>
+<div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#problem">侧载真正麻烦的是什么</a><a href="#signing">先理解 iOS 签名</a><a href="#architecture">SideStore 的架构</a><a href="#vpn">VPN 为什么能帮忙</a><a href="#pairing">配对文件与 Anisette</a><a href="#workflow">一次安装之后发生什么</a><a href="#limits">它没有消除的限制</a><a href="#security">安全边界</a><a href="#conclusion">它真正改变了什么</a><a href="#sources">资料与来源</a></aside>
+<article class="prose">
+<p>SideStore 第一次让我觉得有意思的地方，是它的产品描述非常简单：这是一个不需要常驻 AltServer 的 iOS 侧载工具。把 IPA 放进手机，签名、安装、刷新都尽量在手机上完成。看上去像是把 AltStore 的电脑端删掉了，但如果只理解成“少装一个电脑软件”，就低估了它的工程量。</p>
+<p>iOS 并没有因为 SideStore 出现就放弃代码签名，也没有开放一个普通 App 可以随意安装其他 App 的接口。SideStore 仍然要面对 Apple 的开发者签名体系、设备配对、应用安装服务和免费账号的配额。它做的不是取消这些约束，而是寻找一条在系统现有边界内工作的路径。</p>
+<h2 id="problem">01 / 侧载真正麻烦的不是下载 IPA</h2>
+<p>IPA 本质上是一个应用安装包。下载文件、解压、读取 Info.plist 都不难。真正的门槛在于：iOS 不会因为你拿到了一个 IPA，就允许它成为可运行的应用。</p>
+<p>安装前需要满足代码签名和 provisioning profile 等要求。对于普通免费 Apple Account，常见的个人开发签名有效期是 7 天；过期后应用无法继续正常启动，需要重新签名并安装。签名时还涉及设备标识、App ID、证书和相关授权信息。AltStore 的经典方式，是让电脑上的 AltServer 帮忙完成这些操作，再通过 Apple 的开发者服务生成签名材料。</p>
+<p>因此，真正让人烦恼的是维护链路：手机上装了应用，但刷新它需要另一台电脑；电脑不在身边，应用的有效期就可能悄悄走完。</p>
+<h2 id="signing">02 / SideStore 没有绕过签名，它复用了签名体系</h2>
+<p>先拆掉一个常见误解：SideStore 不是越狱工具，也不是通过漏洞让 iOS 忽略签名。它仍然使用个人 Apple Account 对应用进行签名，仍然受 Apple 对免费开发者账号的规则限制。</p>
+<p>签名可以粗略理解成一份可验证的授权声明：这个应用由谁签署、允许在哪些设备和能力范围内运行、有效期到什么时候。SideStore 管理应用包和签名流程，向 Apple 的开发者服务申请或更新所需材料，再把签好的应用交给 iOS 的安装机制。</p>
+<div class="ss-flow"><div><b>IPA</b><span>待安装应用包</span></div><div><b>签名材料</b><span>证书、Profile、App ID</span></div><div><b>重签名</b><span>使用个人开发身份</span></div><div><b>iOS 安装</b><span>由系统验证并安装</span></div></div>
+<p>所以它并没有“破解 Apple ID”。更准确地说，它把原本由电脑端工具协调的开发者签名流程，尽可能移到了 iOS 设备端。这个区别很重要：签名规则没有消失，自动化只是换了执行位置。</p>
+<h2 id="architecture">03 / 真正有意思的架构：SideStore、EM Proxy 和 Minimuxer</h2>
+<p>SideStore 官方仓库把项目拆成几个关键部分。SideStore 本身是一个普通的沙盒 iOS 应用，主体功能沿用了 AltStore 的应用管理逻辑；它负责下载、更新、签名流程和用户界面。真正让它不再依赖电脑常驻的，是旁边那套设备通信机制。</p>
+<div class="ss-stack"><div class="ss-layer"><b>SideStore App</b><span>管理 IPA、Apple Account、应用列表、证书与刷新操作</span></div><div class="ss-layer"><b>EM Proxy</b><span>利用 LocalDevVPN 提供的本地 VPN/回环路径，让设备端流程能够访问本机需要的服务</span></div><div class="ss-layer"><b>Minimuxer</b><span>在 iOS 沙盒内实现 lockdown muxer 能力，复现与设备服务通信所需的 usbmuxd 风格接口</span></div><div class="ss-layer"><b>iOS 系统服务</b><span>设备配对、安装服务、应用容器和系统级验证</span></div><div class="ss-layer"><b>Apple 服务 / Anisette</b><span>提供开发者签名与账户认证流程需要的远端能力和认证数据</span></div></div>
+<p>这几个组件不是随便拼在一起的。SideStore 的 README 特别指出，EM Proxy 是其 untethered 安装体验的核心；它通过一个具有特殊 entitlement 的定制 App Store 应用 LocalDevVPN 建立 VPN 隧道，再利用 Jitterbug 的 loopback 方法。Minimuxer 则在 iOS 沙盒中实现 lockdown muxer，帮助 SideStore 与 LocalDevVPN 等设备端组件交互。</p>
+<p>换句话说，SideStore 不是让 iPhone 直接获得 macOS 上完整的 usbmuxd 权限，而是在系统允许的范围内，搭出一条设备内部的通信路径，让原本需要电脑参与的部分操作可以在本机衔接起来。</p>
+<h2 id="vpn">04 / 为什么一个 VPN 能解决安装问题？</h2>
+<p>这是 SideStore 最值得讲清楚的设计。</p>
+<p>平常说 VPN，我们想到的是把网络流量送进远端服务器，用来访问公司内网或改变出口 IP。但 SideStore 使用的 LocalDevVPN 并不是为了把你的互联网流量转发到某个远端节点。官方 FAQ 说明，这条 VPN 连接的是设备本身，不依赖远端中继服务器。</p>
+<p>它利用的是 iOS 的 VPN 接口和本地回环路径。系统对普通沙盒应用的权限限制很严格，应用不能随意调用所有设备管理服务；但 SideStore 通过 LocalDevVPN 提供的本地通道，配合 EM Proxy/Jitterbug 的机制，让需要的设备服务通信可以在 iPhone 内部完成。</p>
+<p>可以把它理解为：不是从手机“翻墙”到一台服务器，而是给手机内部的两个受限组件搭了一条可控的本地通信通道。VPN 在这里更像一根虚拟网线，而不是传统意义上的网络代理。</p>
+<div class="ss-note"><p><strong>关键区别：</strong>SideStore 的 VPN 机制不等于所有流量都会经过第三方 VPN 节点。官方 FAQ 表示这条隧道只连接本机，不使用远端服务器。实际网络行为仍应以所安装版本、VPN 配置和系统路由为准。</p></div>
+<p>这种方案的巧妙之处，是把“设备管理服务只能通过受限通道访问”的问题，转换成“如何在设备本机建立一条系统认可的通道”。它不是获得了越狱权限，而是利用已有 entitlement 和系统网络扩展机制，在权限边界内重新组织调用路径。</p>
+<h2 id="pairing">05 / 配对文件和 Anisette：两个容易混淆的角色</h2>
+<p>初次安装 SideStore 时，电脑仍然要出现一次。原因之一是建立设备配对关系，并准备后续访问设备服务需要的配对文件（pairing file）。它不是 SideStore 的账号密码，也不是应用签名证书，而是设备与配对主机之间建立信任关系所需的数据。</p>
+<p>这份文件很关键：它让 SideStore 后续可以在本机通信路径建立后，继续完成需要设备配对能力的操作。官方文档也提醒，iOS 更新或设备重置可能导致 pairing file 失效，有时系统软件变化也会让它需要重新生成。因此“只需要电脑一次”是理想工作流，不代表永远不需要电脑。</p>
+<p>另一个经常一起出现的词是 Anisette。它和 pairing file 不是一回事。Anisette 是 Apple 账户认证流程中使用的一组设备/会话相关数据；SideStore 在登录和与 Apple 服务交互时需要它。项目文档提供 Anisette Server 配置项，也提醒用户选择可信服务，官方 FAQ 记录了部分旧服务器可能导致 Apple ID 被锁定的情况。</p>
+<div class="ss-grid"><div class="ss-card"><strong>Pairing File</strong><p>解决设备配对与本地设备服务访问所需的信任关系。设备更新、重置后可能需要重建。</p></div><div class="ss-card"><strong>Anisette</strong><p>服务于 Apple 账户认证流程的数据，不是设备配对文件，也不是签名证书。</p></div><div class="ss-card"><strong>Signing Certificate</strong><p>用于签署应用的开发者证书与授权材料，决定应用能否被系统接受及其有效期。</p></div></div>
+<p>如果把三者混为一谈，排障就会很痛苦：配对文件失效，不一定是 Apple ID 密码错；Anisette 服务不可用，也不一定是 VPN 没连上；签名证书过期，更不是重新配对就能解决。</p>
+<h2 id="workflow">06 / 一次安装之后，日常刷新是怎么完成的？</h2>
+<p>第一次安装通常通过电脑工具（官方文档当前指向 iloader）连接 iPhone，完成初始安装和配对材料准备。用户在手机上信任开发者应用、启用 Developer Mode（系统要求时），连接 LocalDevVPN，再登录相应 Apple Account，完成第一次刷新。</p>
+<p>后续流程就不再要求 AltServer 常驻：用户从 SideStore 选择 IPA，应用在设备端协调下载、签名和安装；刷新时重新处理开发者签名有效期。SideStore 的目标是尽量自动刷新，但后台刷新仍受 iOS 后台执行时机、网络、VPN 状态和认证服务可用性影响。不要把“支持后台刷新”理解成系统保证它一定会在过期前成功运行。</p>
+<p>从运维角度看，这其实是一个多依赖工作流：</p>
+<div class="ss-flow"><div><b>网络可用</b><span>能访问 Apple 与所需服务</span></div><div><b>VPN 正常</b><span>本地通道建立成功</span></div><div><b>配对有效</b><span>本机设备服务可访问</span></div><div><b>认证可用</b><span>Anisette 与账号登录正常</span></div><div><b>签名成功</b><span>证书和 App ID 额度允许</span></div></div>
+<p>任何一环出问题，界面上都可能只表现为“刷新失败”。官方错误码已经把其中一部分拆开：1412 对应 Anisette V3 服务连接失败，1414 表示 Wi-Fi 或 LocalDevVPN 未就绪；Minimuxer 也有自己的设备文件访问错误。与其反复点刷新，不如先识别失败发生在哪一层。</p>
+<h2 id="limits">07 / 它没有消除的限制</h2>
+<p>SideStore 很方便，但它没有改变免费 Apple Account 的基本配额。官方 FAQ 当前列出的限制是：免费账号最多同时安装 3 个应用（包含 SideStore 本身），并且 7 天内最多注册 10 个不同的 App ID。这里的“3 个应用”和“10 个 App ID”是两个不同限制，不要把它们当成同一个计数器。</p>
+<p>付费 Apple Developer Program 账号可以获得更长的签名有效期和更高的使用空间，但这不代表 SideStore 自己提供了绕过苹果规则的能力。JIT 也要单独看 iOS 版本和 SideStore 版本：官方 FAQ 对不同系统版本给出了不同方式，并非安装 SideStore 就能让任意应用随时获得 JIT。</p>
+<p>还有一个现实问题：SideStore 目前仍是社区驱动项目，官方 FAQ 标注为 public beta。它依赖 Apple 私有或变化较快的设备通信与认证流程，系统升级、服务器状态和工具版本都可能影响稳定性。对依赖某个 IPA 长期工作的设备，不要把自动刷新当成唯一保障，重要应用应保留安装包、数据备份和恢复方案。</p>
+<h2 id="security">08 / 安全边界：真正需要留意的不是 VPN 图标</h2>
+<p>侧载工具需要接触 Apple Account 认证流程，因而账户安全比“能不能装上 IPA”更重要。不要把 Apple ID 密码、应用专用密码或配对文件交给来路不明的网页和服务；不要为了绕过错误提示，随意切换到来源不明的 Anisette Server。官方 FAQ 明确提醒，部分旧的、被大量用户共享的 Anisette Server 曾出现导致 Apple ID 锁定的情况，并建议使用官方服务器或自行托管的服务。</p>
+<p>安装 IPA 本身也有供应链风险。SideStore 负责签名和安装，不代表它替你审查 IPA 的代码。应用拿到的权限仍然取决于应用自身、iOS 沙盒和用户授权。下载来源、开发者身份、entitlements、网络行为和更新渠道，都值得单独检查。</p>
+<h2 id="conclusion">09 / SideStore 真正改变的是什么？</h2>
+<p>SideStore 的价值，不是“免费装软件”，也不是“破解了 iOS”。它做了一件更像工程系统设计的事：保留 Apple 的签名和安装规则，把原来散落在电脑端的签名协调、设备通信和刷新流程，重新组合成一个尽可能在手机内部运行的工作流。</p>
+<p>最有意思的是 LocalDevVPN。它没有把 VPN 当成访问外部网络的通道，而是利用系统提供的网络扩展能力，给本机组件建立受控的回环通信路径。再加上 Minimuxer 对设备通信协议的实现，SideStore 才能在不越狱的情况下，把电脑从日常刷新流程里移开。</p>
+<p>它也提醒我，很多看起来像“系统限制”的东西，实际是多个权限边界、协议和服务组合后的结果。理解这些边界，未必能消除限制，却可能找到更好的系统设计方式。SideStore 做的不是魔法，而是一套相当具体、也相当脆弱的工程折中。</p>
+<h2 id="sources">资料与来源</h2>
+<ul>
+<li><a href="https://github.com/SideStore/SideStore">SideStore 官方 GitHub 仓库</a>：项目 README、EM Proxy、LocalDevVPN、Minimuxer 的架构说明。</li>
+<li><a href="https://docs.sidestore.io/docs/faq.html">SideStore 官方 FAQ</a>：免费账号限制、VPN 工作方式、Anisette 与 JIT 的常见问题。</li>
+<li><a href="https://docs.sidestore.io/docs/installation/install.html">SideStore 官方安装文档</a>：初次安装、LocalDevVPN 连接、首次刷新及配对文件说明。</li>
+<li><a href="https://docs.sidestore.io/docs/troubleshooting/error-codes">SideStore 官方错误码文档</a>：Anisette、VPN、配对和 Minimuxer 相关错误码。</li>
+<li><a href="https://github.com/jkcoxson/em_proxy">EM Proxy</a>：SideStore 本地代理与设备通信相关实现。</li>
+<li><a href="https://github.com/jkcoxson/minimuxer">Minimuxer</a>：lockdown muxer 的实现项目。</li>
+<li><a href="https://github.com/osy/Jitterbug">Jitterbug</a>：SideStore 所利用的 loopback 技术背景。</li>
+</ul>
+<p class="ss-callout">本文依据 2026 年 11 月 12 日可查的 SideStore 官方仓库与文档整理。SideStore 仍在持续开发，具体系统兼容性、错误码和安装要求请以对应版本文档为准。</p>
+</article></div></main>
+<footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>原理、实现与验证，尽量放在同一篇文章里</span></footer><script src="/assets/site.js" defer></script></body></html>
