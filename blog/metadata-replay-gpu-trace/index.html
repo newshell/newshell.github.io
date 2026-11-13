@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#f5f5f7">
+<meta name="description" content="GPU Trace 调试不应该为了查看 Program、Uniform 和 Pipeline State，就把此前所有 Draw 和 Dispatch 再执行一遍。讨论 Metadata Replay 的边界、正确性与验证方法。">
+<title>别为了看状态，把 GPU 再跑一遍 · codie lab</title>
+<link rel="canonical" href="https://blog.codie.uk/blog/metadata-replay-gpu-trace/"><link rel="icon" href="/assets/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/assets/site.css">
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("codie-theme")==="dark"?"dark":"light"}catch(e){document.documentElement.dataset.theme="light"}</script>
+<meta property="og:type" content="article"><meta property="og:site_name" content="codie lab"><meta property="og:title" content="别为了看状态，把 GPU 再跑一遍"><meta property="og:description" content="Metadata Replay：把状态检查和真实 GPU 执行拆成两种不同的工作。"><meta property="og:url" content="https://blog.codie.uk/blog/metadata-replay-gpu-trace/"><meta property="og:image" content="https://blog.codie.uk/assets/illustrations/metadata-replay.svg"><meta name="twitter:card" content="summary_large_image"><meta name="twitter:title" content="别为了看状态，把 GPU 再跑一遍"><meta name="twitter:description" content="Metadata Replay：把状态检查和真实 GPU 执行拆成两种不同的工作。"><meta name="twitter:image" content="https://blog.codie.uk/assets/illustrations/metadata-replay.svg">
+<style>
+.mr-note{border-left:3px solid var(--accent);background:var(--surface-alt);padding:15px 19px;border-radius:0 12px 12px 0;margin:23px 0}.mr-note p{margin:0!important}.mr-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:24px 0}.mr-card{border:1px solid var(--line);background:var(--surface);border-radius:15px;padding:17px}.mr-card strong{display:block;margin-bottom:6px}.mr-card p{font-size:13px;color:var(--muted);margin:0!important}.mr-flow{display:flex;align-items:stretch;gap:8px;margin:22px 0;flex-wrap:wrap}.mr-flow div{flex:1 1 130px;border:1px solid var(--line);border-radius:12px;padding:13px;background:var(--surface);font-size:13px}.mr-flow b{display:block;margin-bottom:4px}.mr-flow span{color:var(--muted)}.mr-table{overflow-x:auto;border:1px solid var(--line);border-radius:14px;margin:22px 0}.mr-table table{margin:0;width:100%}.mr-table th,.mr-table td{padding:12px;font-size:13px;vertical-align:top}.mr-callout{font-size:13px;color:var(--muted)}@media(max-width:650px){.mr-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="progress" aria-hidden="true"></div><a class="skip" href="#main">跳到正文</a>
+<header class="site-header"><div class="shell topbar"><a href="/" class="brand" aria-label="codie lab 首页"><span class="brand-mark" aria-hidden="true">c</span><span><strong>codie<span>.</span>lab</strong><small>TECHNICAL JOURNAL</small></span></a><nav class="mainnav" aria-label="主导航"><a href="/">首页</a><a href="/blog/" aria-current="page">文章</a><a href="/about/">关于</a><a href="/terms/">术语</a><button class="theme-button" type="button" data-theme-toggle aria-label="切换深色模式" title="切换深色模式">◐</button></nav></div></header>
+<main id="main">
+<header class="shell article-heading"><a class="quietlink" href="/blog/">← 返回文章列表</a><p class="meta"><span class="signal"></span> Graphics Debugging · 2026-11-13</p><h1>别为了看状态，把 GPU 再跑一遍<span class="accent">.</span></h1><p class="lead">Metadata Replay：把状态检查和真实 GPU 执行拆成两种不同的工作。调试器不应该为了回答“当前绑定了哪个 Program”，就重新执行此前数万次 Draw。</p></header>
+<figure class="article-banner"><img src="/assets/illustrations/metadata-replay.svg" alt="Metadata Replay 与 Full Replay 两种图形 Trace 回放模式的架构示意"><figcaption>同一份 Trace，两种不同的任务：一种回答状态与对象问题，另一种负责真实资源内容和 GPU 执行。</figcaption></figure>
+<div class="shell article-layout"><aside class="toc"><span class="toc-title">本文目录</span><a href="#symptom">一次状态查询为什么这么贵</a><a href="#wrong">缓存不是所有问题的答案</a><a href="#split">把 Replay 拆成两种工作</a><a href="#metadata">Metadata Replay 到底执行什么</a><a href="#hard">真正困难的是副作用</a><a href="#validity">不要把未知显示成零</a><a href="#benchmark">怎样证明它真的更快</a><a href="#boundary">它不能替代什么</a><a href="#conclusion">调试器应该先回答问题</a><a href="#sources">资料与来源</a></aside>
+<article class="prose">
+<p>图形调试器有一种很奇怪的体验：你只是想看某个 Draw Call 使用了哪个 Program，Inspector 却开始等待；你只是切到 State 面板，后台又出现一轮状态查询；你已经跳到了目标 Call，纹理缩略图和 Buffer 信息还在陆续加载。</p>
+<p>如果 Trace 很短，这些等待不算什么。可一旦捕获文件包含数万甚至数十万次 API 调用，向后跳转就可能变成一次完整的历史重演。为了知道某个时刻的状态，工具需要把之前的调用重新喂给 Replay；而其中大量工作其实是在执行 Draw、Dispatch 和 Clear。</p>
+<p>问题在于：<strong>查看状态，不等于需要重新生成画面。</strong></p>
+<h2 id="symptom">01 / 一次状态查询为什么这么贵？</h2>
+<p>以 OpenGL 为例，Program、Shader、Uniform、Texture Binding、Sampler、FBO Attachment、VAO、Blend、Depth 和 Viewport 等信息，大多来自 API 调用流中的对象创建、绑定和状态设置。</p>
+<p>当调试器要回答“Call N 时绑定了哪个 Program”，它需要知道从此前某个时刻开始，哪些调用改变了当前 Context 的状态。最直接也最可靠的办法，是按顺序 Replay 到 N，再向 Replay 进程查询状态。</p>
+<p>这条路径的缺点也很明显：如果 Call N 距离当前 Replay 位置很远，工具就必须重新执行中间的调用。对真实画面来说，Draw 和 Dispatch 是必要工作；但对 Program、Uniform 或 Pipeline State 查询来说，很多时候它们只是漫长历史中的计算负担。</p>
+<p>apitrace 将 Replay 与状态检查、Framebuffer/Texture 查看放在同一套工具链里，正体现了这类工具的基本模型：从捕获的 API 调用恢复某个时刻的程序状态。<a href="https://apitrace.github.io/">apitrace 项目说明</a>也明确列出了“在任意调用处检查状态”和回放捕获调用的能力。</p>
+<h2 id="wrong">02 / 缓存不是所有问题的答案</h2>
+<p>最容易想到的优化，是把已经查询过的状态缓存起来。这当然有价值：同一个 Call 被 State、Inspector 和 Agent 反复访问时，不应该每次都重新向 Replay 进程取一遍数据。</p>
+<p>但缓存只能加速“已经算过”的结果。用户第一次跳到一个从未访问过的历史 Call 时，Replay 仍然要从某个可用起点走到目标位置。若大部分时间都花在执行历史 Draw/Dispatch，那么把查询结果缓存得再漂亮，也不会让第一次冷导航突然变快。</p>
+<div class="mr-grid"><div class="mr-card"><strong>Snapshot Cache</strong><p>减少重复状态读取、重复序列化和 UI 切换时的等待。它优化的是查询阶段。</p></div><div class="mr-card"><strong>Metadata Replay</strong><p>减少为了恢复状态而执行的 GPU 工作。它试图优化的是冷导航阶段。</p></div></div>
+<p>两者不是互斥关系。Snapshot Cache 仍然值得做，但如果瓶颈是 Replay 本身，应该先改变 Replay 在检查模式下需要完成的工作量。</p>
+<h2 id="split">03 / 把 Replay 拆成两种工作</h2>
+<p>可以把同一份 Trace 的回放拆成两个明确的模式。</p>
+<div class="mr-grid"><div class="mr-card"><strong>Metadata Replay</strong><p>快速恢复 API 状态、对象关系、Shader/Program 信息和资源描述；不承诺得到真实像素或 GPU 计算结果。</p></div><div class="mr-card"><strong>Full Replay</strong><p>完整执行 GPU 工作，负责截图、Framebuffer、Texture/Buffer 内容、像素分析、GPU Timing 和实验验证。</p></div></div>
+<p>这不是把 Replay 做成“快一点”和“慢一点”两个档位，而是承认它们回答的是不同问题：</p>
+<div class="mr-flow"><div><b>用户选中 Call</b><span>我想知道这个时刻的状态</span></div><div><b>Metadata Replay</b><span>恢复调用流与状态元数据</span></div><div><b>State / Inspector</b><span>显示确定的状态事实</span></div><div><b>需要像素时</b><span>显式进入 Full Replay</span></div></div>
+<p>NVIDIA Nsight Graphics 的公开文档已经提供了一个值得研究的产品先例：Graphics Debugger 有 Offline Replay 和 Live Replay 两种模式。Offline Replay 启动快、不创建渲染设备，可以查看事件、API 参数、状态、对象、资源描述和 Shader 元数据；但图像像素、Buffer 内容、GPU Timing 等数据需要 Live Replay。<a href="https://docs.nvidia.com/nsight-graphics/UserGuide/graphics-capture-overview.html">官方 Graphics Capture Overview</a> 对两种模式的能力边界有明确说明。</p>
+<p>需要强调：这只能证明“元数据检查与完整设备回放分层”是成熟工具采用的产品方向，不能据此断言 Nsight 内部采用了某种特定的跳过 Draw 实现。我们讨论的 Metadata Replay，是面向 API Trace 工具的一种具体工程设计。</p>
+<h2 id="metadata">04 / Metadata Replay 到底执行什么？</h2>
+<p>第一版的目标不是模拟 GPU，而是尽可能忠实地恢复 CPU/API 层面的状态。</p>
+<p>通常需要保留的调用包括：</p>
+<ul>
+<li>Context 创建、切换及相关对象生命周期操作。</li>
+<li>Buffer、Texture、Sampler、Shader、Program、Framebuffer、VAO 等对象的创建与删除。</li>
+<li>Bind、Attach、Link、Use 等改变对象关系和绑定状态的调用。</li>
+<li>Uniform、Viewport、Scissor、Blend、Depth、Stencil 等状态设置。</li>
+<li>资源的尺寸、格式、层级、采样参数，以及可从调用参数中可靠恢复的描述信息。</li>
+</ul>
+<p>而在纯状态检查模式下，可能不需要执行的工作包括：</p>
+<ul>
+<li>普通 Draw 与 DrawIndexed。</li>
+<li>Dispatch / DispatchIndirect。</li>
+<li>Clear 与其他直接修改 Render Target 内容的操作。</li>
+<li>只影响 GPU 资源内容、而不改变后续 API 元数据的执行阶段。</li>
+</ul>
+<p>这里的关键词是“可能”。不能看到一个函数名里有 Draw 或 Dispatch，就简单地把它删掉；也不能把所有 Clear 都当成无关紧要。需要先定义检查模式要保证哪些事实，再按 API 语义分类，而不是按函数名字面意思做黑名单。</p>
+<h2 id="hard">05 / 真正困难的是副作用，而不是跳过几个函数</h2>
+<p>Draw 和 Dispatch 不只是向屏幕画东西。它们可能写入 Image、SSBO、Atomic Counter、Transform Feedback Buffer，也可能影响 Occlusion Query、Pipeline Statistics、Fence 和其他同步对象。后续调用还可能把这些 GPU 写入结果读回 CPU，再参与资源更新或控制流程。</p>
+<p>如果直接跳过这些调用，后面的状态查询可能仍然看起来合理，但它依赖的资源内容已经不再是真实值。最危险的情况不是程序崩溃，而是工具安静地给出一份看似完整、实际已经失真的结果。</p>
+<div class="mr-note"><p><strong>核心原则：</strong>Metadata Replay 可以跳过 GPU 内容生产，但必须记录哪些内容因此变得未知。它不能用“没有执行”伪装成“执行结果为空”。</p></div>
+<p>因此，调用分类至少需要考虑三个维度：</p>
+<div class="mr-table"><table><thead><tr><th>调用类别</th><th>对元数据的影响</th><th>对资源内容的影响</th><th>检查模式策略</th></tr></thead><tbody><tr><td>对象创建 / 删除</td><td>直接影响</td><td>创建空对象或结束生命周期</td><td>执行并更新对象状态</td></tr><tr><td>Bind / State 设置</td><td>直接影响</td><td>通常不直接写入像素</td><td>执行并记录状态</td></tr><tr><td>Draw / Dispatch</td><td>可能间接影响查询与同步状态</td><td>可能写入大量资源</td><td>仅在语义允许时跳过，并传播未知状态</td></tr><tr><td>Clear / Copy / Resolve</td><td>通常不改变绑定关系</td><td>直接改变资源内容</td><td>跳过内容操作并标记受影响资源</td></tr><tr><td>Query / Sync / Readback</td><td>可能影响后续控制流</td><td>可能依赖之前 GPU 执行</td><td>单独建模；不能一概跳过</td></tr></tbody></table></div>
+<p>尤其是 Query 和同步调用，它们可能让后续 CPU 行为依赖 GPU 结果。若 Trace 中存在真实的条件分支、映射读回或等待行为，检查模式就必须识别这种依赖：要么提供安全的占位语义并标记不完整，要么在遇到无法安全模拟的边界时停止快速模式，回退到 Full Replay。</p>
+<p>这意味着 Metadata Replay 不一定能覆盖所有 Trace。一个诚实的“无法快速检查”远比错误地显示一个状态值更好。</p>
+<h2 id="validity">06 / 不要把未知显示成零</h2>
+<p>如果检查模式跳过了此前的 Draw，那么某张 Texture 的尺寸、格式、Mipmap 层数可能仍然确定，但它的像素内容不确定。两类信息必须分开表达。</p>
+<p>例如一个资源的检查结果可以带有明确的可用性：</p>
+<pre><code>{
+  "metadata": {
+    "format": "RGBA8",
+    "width": 2048,
+    "height": 2048,
+    "validity": "known"
+  },
+  "content": {
+    "validity": "not_replayed",
+    "requires": "full_replay"
+  }
+}</code></pre>
+<p>这里的 <code>not_replayed</code> 不是零填充，不是黑色纹理，也不是资源不存在。它只表示当前模式没有执行生成这份内容所需的 GPU 工作。</p>
+<p>同样的原则适用于 Uniform、资源绑定和对象引用：值为 0、对象未绑定、数据未加载、调用流无法确定，是四种不同状态。调试器应该把它们明确区分，而不是用一个空值糊在一起。</p>
+<h2 id="benchmark">07 / 怎样证明它真的更快？</h2>
+<p>这种优化不能只看代码里少执行了多少函数。真正需要比较的是用户点击目标 Call 到界面能够可靠展示状态之间的时间。</p>
+<p>至少需要准备几类 Trace：Draw 密集型、Compute 密集型、资源上传密集型，以及 Shader 编译或对象创建密集型。每类选择多个目标 Call，分别运行 Full Replay 和 Metadata Replay，记录冷启动与向后导航时间。</p>
+<p>建议记录的指标：</p>
+<ul>
+<li><code>serve_ready_ms</code>：Replay 到达目标位置并能提供状态的总耗时。</li>
+<li><code>replay_work_ms</code>：实际执行调用所消耗的时间。</li>
+<li><code>skipped_gpu_calls</code>：检查模式跳过的 GPU 工作调用数量。</li>
+<li><code>metadata_mismatch_count</code>：两种模式在可比较元数据上的差异数量。</li>
+<li><code>unknown_resource_count</code>：因跳过 GPU 工作而被标记为未知的资源数量。</li>
+</ul>
+<p>验收时要同时满足性能和正确性。可以先设一个明确的工程门槛：代表性 Trace 的冷导航中位数至少提升 3 倍，且 Program、Shader、Uniform、Binding、Pipeline 等承诺支持的元数据与 Full Replay 一致；否则就不应该急着把它产品化。</p>
+<p>还要检查负面边界：Metadata Replay 不能生成看似真实的截图，不能提供伪造的 Texture/Buffer 内容，不能用于 GPU Timing，也不能把它的结果拿去做 Patch 因果实验。模式切换后必须明确告知用户当前数据来自哪种 Replay。</p>
+<h2 id="boundary">08 / 它不能替代什么？</h2>
+<p>Metadata Replay 不是通用加速开关。它解决的是“为了查看状态而执行了过多 GPU 工作”，而不是所有 Replay 慢的问题。</p>
+<ul>
+<li>如果 Trace 的耗时主要来自 Shader 编译，跳过 Draw 也可能帮助有限。</li>
+<li>如果目标是查看 Texture 像素、Framebuffer、Buffer 内容或 Draw 输出，仍然需要 Full Replay。</li>
+<li>如果 API 调用存在 GPU 到 CPU 的数据依赖，快速模式可能必须中止或降级。</li>
+<li>如果问题本身是驱动崩溃、资源生命周期或同步错误，最终仍需在真实 Replay 环境中复现。</li>
+</ul>
+<p>而且，这个设计也不能简单等同于 Nsight Offline Replay。Nsight 的公开文档描述的是其 Capture Document 和 Offline/Live Replay 产品模式；具体工具内部如何保存、恢复和验证状态，公开资料并不足以让我们推断实现细节。</p>
+<h2 id="conclusion">09 / 调试器应该先回答问题，再决定是否执行 GPU</h2>
+<p>做图形调试工具时，我们很容易把“重放”当成唯一的事实来源：想知道状态，就把程序再运行到那里；想看资源，就把 GPU 工作再做一遍。这个思路可靠，却不总是经济。</p>
+<p>用户提出的问题其实有不同层次：“当前绑定了什么？”是状态问题；“这张纹理现在是什么像素？”是内容问题；“为什么这次 Draw 输出不对？”是执行与因果问题。它们不应该被同一种昂贵的 Replay 路径包办。</p>
+<p>Metadata Replay 的价值，正是把第一类问题从完整 GPU 执行中分离出来。它不会让所有 Trace 都变快，也不会替代真正的 GPU 调试；但如果边界设计正确，它能让调试器先快速回答那些本来就不需要 GPU 重新计算的问题。</p>
+<p><strong>好的图形调试器，不是每次都把 GPU 再跑一遍，而是知道什么时候真的需要它跑。</strong></p>
+<h2 id="sources">资料与来源</h2>
+<ul>
+<li><a href="https://docs.nvidia.com/nsight-graphics/UserGuide/graphics-capture-overview.html">NVIDIA Nsight Graphics — Graphics Capture Overview</a>：Offline Replay 与 Live Replay 的能力边界、启动特征和资源可用性。</li>
+<li><a href="https://docs.nvidia.com/nsight-graphics/UserGuide/graphics-capture-ui.html">NVIDIA Nsight Graphics — Graphics Capture UI Reference</a>：Resource Viewer、Revisions 和 GPU Trace 的使用边界。</li>
+<li><a href="https://apitrace.github.io/">apitrace 官方项目</a>：API Trace、Replay、状态检查、资源查看和 Trace 编辑能力。</li>
+<li><a href="https://github.com/apitrace/apitrace">apitrace 源码仓库</a>：公开的 Trace 与 Retrace 实现，可用于理解调用标记和回放语义。</li>
+</ul>
+<p class="mr-callout">本文讨论的是一种面向 API Trace 调试器的工程设计，不代表 Nsight 或 apitrace 内部采用了完全相同的实现。跳过 GPU 工作的安全性必须按具体 API、调用语义和资源依赖验证。</p>
+</article></div></main>
+<footer class="shell site-foot"><span>© 2017–2026 codie lab</span><span>原理、实现与验证，尽量放在同一篇文章里</span></footer><script src="/assets/site.js" defer></script></body></html>
